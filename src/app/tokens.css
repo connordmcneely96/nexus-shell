@@ -1,0 +1,71 @@
+/*
+ * NEXUS design tokens — static by design. No [data-theme] selectors, no
+ * media-query color overrides, no runtime/JS-settable values. A later sprint
+ * may add a light theme; S2 does not.
+ *
+ * These values are original to NEXUS; no value is copied from any reference
+ * implementation. Only the STRUCTURE (4px spacing base, radius ladder, named
+ * role vocabulary) is a shared pattern.
+ */
+
+:root {
+  /* Surfaces — ascending elevation */
+  --nx-surface-base:     #0B0D10;
+  --nx-surface-raised:   #12151A;
+  --nx-surface-overlay:  #1A1F26;
+
+  /* Borders */
+  --nx-border-subtle:    #232932;
+  --nx-border-strong:    #333B47;
+
+  /* Text */
+  --nx-text-primary:     #E6EAF0;
+  --nx-text-muted:       #94A0B0;
+  --nx-text-faint:       #5D6874;
+
+  /* Accent — interactive and in-progress */
+  --nx-accent:           #4C8DFF;
+  --nx-accent-dim:       #2F6BD4;
+
+  /* Status roles. NOTE: --nx-verdict is deliberately OUTSIDE the
+     success/warn/danger triad. 'infeasible' is a determinate engineering
+     answer, not a warning and not a failure. Do not fold it into warn. */
+  --nx-success:          #3DBE7A;   /* converged */
+  --nx-verdict:          #8B7BE8;   /* infeasible — an answer that says no */
+  --nx-warn:             #E0A020;   /* provisional / not-for-sale */
+  --nx-danger:           #E5484D;   /* failed */
+  --nx-pending:          #6B7280;   /* pending / queued */
+
+  /* Spacing — 4px base */
+  --nx-space-1: 4px;   --nx-space-2: 8px;   --nx-space-3: 12px;
+  --nx-space-4: 16px;  --nx-space-5: 20px;  --nx-space-6: 24px;
+  --nx-space-8: 32px;  --nx-space-10: 40px; --nx-space-12: 48px;
+  --nx-space-16: 64px;
+
+  /* Radius ladder */
+  --nx-radius-xs: 2px;  --nx-radius-sm: 4px;  --nx-radius-md: 6px;
+  --nx-radius-lg: 10px; --nx-radius-xl: 16px; --nx-radius-full: 9999px;
+
+  /* Type */
+  --nx-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+                  Roboto, Helvetica, Arial, sans-serif;
+  --nx-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+                  "Liberation Mono", monospace;
+  --nx-text-xs: 11px;  --nx-text-sm: 13px;  --nx-text-base: 14px;
+  --nx-text-lg: 16px;  --nx-text-xl: 20px;  --nx-text-2xl: 28px;
+
+  /* Motion */
+  --nx-transition: 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --nx-transition: 0ms ease;
+  }
+}
+
+body {
+  background: var(--nx-surface-base);
+  color: var(--nx-text-primary);
+  font-family: var(--nx-font-sans);
+}

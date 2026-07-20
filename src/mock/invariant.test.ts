@@ -6,20 +6,24 @@ const PENDING: readonly string[] = ["<<dim>>", "<<tol - pending>>", "<<check - p
 const isPending = (v: unknown): v is PendingValue =>
   typeof v === "string" && PENDING.includes(v);
 
-// Keys that carry an ENGINEERING value — must always hold a PendingValue.
-const ENGINEERING_KEYS = [
-  "dimension", "dim", "tolerance", "tol", "stress", "deflection",
-  "load", "margin", "diameter", "thickness", "pressure", "result",
-];
-const isEngineeringKey = (key: string) =>
-  ENGINEERING_KEYS.some((k) => key.toLowerCase().includes(k));
+// Fail-closed allowlist. Every key is either operational, structural, or it
+// holds a PendingValue — there is no name matching and no fourth category, so
+// a new field (`torque`, `rpm`, `flow`, …) fails until it is classified here.
 
-// Operational keys — REAL values, exempt by explicit name (written out, not
-// inferred). These are numbers by design and must never be flagged.
-const OPERATIONAL_ALLOWLIST = new Set([
+// Operational keys — real numbers by design (S5 renders them).
+const OPERATIONAL_KEYS = new Set([
   "cost", "elapsed", "runCount", "cycle", "maxCycles",
-  "subtasks", "createdAt", "updatedAt", "percentComplete",
+  "subtasks", "percentComplete", "createdAt", "updatedAt",
 ]);
+
+// Structural keys — labels, ids, containers. Never a number.
+const STRUCTURAL_KEYS = new Set([
+  "id", "name", "label", "status", "blockingConstraint",
+  "runs", "checks", "assumptions",
+]);
+
+const isStructuralValue = (v: unknown) =>
+  typeof v === "string" || v === null || typeof v === "object";
 
 function walk(node: unknown, path: string, out: string[]): void {
   if (Array.isArray(node)) {
@@ -29,7 +33,15 @@ function walk(node: unknown, path: string, out: string[]): void {
   if (node && typeof node === "object") {
     for (const [key, value] of Object.entries(node)) {
       const here = path ? `${path}.${key}` : key;
-      if (!OPERATIONAL_ALLOWLIST.has(key) && isEngineeringKey(key) && !isPending(value)) {
+      if (OPERATIONAL_KEYS.has(key)) {
+        if (typeof value !== "number") {
+          out.push(`${here} = ${JSON.stringify(value)} (expected a number)`);
+        }
+      } else if (STRUCTURAL_KEYS.has(key)) {
+        if (!isStructuralValue(value)) {
+          out.push(`${here} = ${JSON.stringify(value)} (expected a string, null, array, or object — never a number)`);
+        }
+      } else if (!isPending(value)) {
         out.push(`${here} = ${JSON.stringify(value)} (expected a PendingValue)`);
       }
       walk(value, here, out);
@@ -37,13 +49,13 @@ function walk(node: unknown, path: string, out: string[]): void {
   }
 }
 
-describe("engineering-value invariant", () => {
-  it("no engineering-keyed field holds anything but a PendingValue", () => {
+describe("engineering-value invariant (fail-closed)", () => {
+  it("every key is operational, structural, or holds a PendingValue", () => {
     const violations: string[] = [];
     walk(jobs, "", violations);
     expect(
       violations,
-      `engineering fields must be PendingValue:\n${violations.join("\n")}`,
+      `unclassified or mistyped fields:\n${violations.join("\n")}`,
     ).toEqual([]);
   });
 });
