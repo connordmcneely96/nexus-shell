@@ -20,8 +20,18 @@ const titleCase = (slug: string): string =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
+// Acronym/proper-noun casing where mechanical title-casing reads wrong.
+export const LABEL_OVERRIDES: Record<string, string> = {
+  cad: "CAD",
+  fmea: "FMEA",
+  rfq: "RFQ",
+  ide: "IDE",
+  "ai-providers": "AI Providers",
+  "d1-explorer": "D1 Explorer",
+};
+
 const tools = (slugs: string[]): ToolEntry[] =>
-  slugs.map((slug) => ({ slug, label: titleCase(slug) }));
+  slugs.map((slug) => ({ slug, label: LABEL_OVERRIDES[slug] ?? titleCase(slug) }));
 
 export const groups: NavGroup[] = [
   { id: "jobs", label: "Jobs", stub: true, tools: [] }, // FIRST. S4 fills it.
