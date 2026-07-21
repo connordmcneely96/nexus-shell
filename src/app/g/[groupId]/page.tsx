@@ -4,12 +4,10 @@ import { groups } from "@/nav/config";
 // Group landing pages. Tools render as disabled cards — labels and slugs
 // only, never an engineering value. Cards are findable, not reachable.
 
-export function generateStaticParams() {
-  return groups.map((g) => ({ groupId: g.id }));
-}
-
-export const dynamicParams = false;
-
+// Runtime-rendered by design: incrementalCache is "dummy" (zero bindings),
+// so prerendered output is unreachable at serve time. dynamicParams=false
+// here means every /g/* request 404s in production (S3-F1). Unknown ids
+// are handled by the explicit notFound() below.
 export default async function GroupPage({
   params,
 }: {
