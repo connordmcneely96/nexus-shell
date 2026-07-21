@@ -1,3 +1,5 @@
+import { CommandKHint } from "@/components/frame/CommandK";
+
 // Topbar. Server component — wordmark left, Cmd+K hint right.
 export default function Topbar() {
   return (
@@ -7,9 +9,7 @@ export default function Topbar() {
     >
       <span className="font-mono tracking-wide text-text-primary">NEXUS</span>
       {/* text-faint is correct here: the chip is decorative ornament */}
-      <span className="rounded-sm border border-border-subtle px-2 py-1 font-mono text-xs text-text-faint">
-        ⌘K / Ctrl+K
-      </span>
+      <CommandKHint />
     </header>
   );
 }

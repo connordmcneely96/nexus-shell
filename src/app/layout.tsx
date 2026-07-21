@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Topbar from "@/components/frame/Topbar";
 import Rail from "@/components/frame/Rail";
+import CommandK from "@/components/frame/CommandK";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <CommandK />
         <div className="flex h-screen flex-col">
           <Topbar />
           <div className="flex min-h-0 flex-1">
