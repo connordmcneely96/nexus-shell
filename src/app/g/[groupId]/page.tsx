@@ -18,7 +18,7 @@ export default async function GroupPage({
   if (!group) notFound();
 
   return (
-    <div>
+    <div className="p-8">
       <h1 className="text-2xl">{group.label}</h1>
 
       {group.stub ? (
