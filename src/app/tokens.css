@@ -21,6 +21,9 @@
   /* Text */
   --nx-text-primary:     #E6EAF0;
   --nx-text-muted:       #94A0B0;
+  /* text-faint is DECORATIVE ONLY — captions, disabled states, ornament.
+     Never information-bearing text. 3.43:1 on surface-base, below AA, by
+     accepted ruling 2026-07-20. */
   --nx-text-faint:       #5D6874;
 
   /* Accent — interactive and in-progress */
@@ -34,7 +37,7 @@
   --nx-verdict:          #8B7BE8;   /* infeasible — an answer that says no */
   --nx-warn:             #E0A020;   /* provisional / not-for-sale */
   --nx-danger:           #E5484D;   /* failed */
-  --nx-pending:          #6B7280;   /* pending / queued */
+  --nx-pending:          #828D9C;   /* pending / queued */
 
   /* Spacing — 4px base */
   --nx-space-1: 4px;   --nx-space-2: 8px;   --nx-space-3: 12px;
