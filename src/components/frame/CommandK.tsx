@@ -23,14 +23,18 @@ const ENTRIES: Entry[] = [
 
 const OPEN_EVENT = "nx-commandk-open";
 
-export function CommandKHint() {
+// The topbar omnibar — opens the palette via the existing event.
+export function Omnibar() {
   return (
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="rounded-sm border border-border-subtle px-2 py-1 font-mono text-xs text-text-faint"
+      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-raised px-3 py-1 text-sm text-text-muted"
+      style={{ maxWidth: "560px" }}
     >
-      ⌘K / Ctrl+K
+      <span className="truncate">Ask, search, create, run, deploy…</span>
+      {/* text-faint: decorative shortcut ornament */}
+      <span className="rounded-sm border border-border-subtle px-2 font-mono text-xs text-text-faint">⌘K</span>
     </button>
   );
 }
