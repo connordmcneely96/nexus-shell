@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { jobs } from "./fixtures";
+import { verticals } from "../shell/verticals";
 import type { PendingValue } from "./types";
 
 const PENDING: readonly string[] = ["<<dim>>", "<<tol - pending>>", "<<check - pending>>"];
@@ -16,14 +17,19 @@ const OPERATIONAL_KEYS = new Set([
   "subtasks", "percentComplete", "createdAt", "updatedAt",
 ]);
 
-// Structural keys — labels, ids, containers. Never a number.
+// Structural keys — labels, ids, flags, containers. Never a number.
 const STRUCTURAL_KEYS = new Set([
   "id", "name", "label", "status", "blockingConstraint",
   "runs", "checks", "assumptions",
+  // VerticalStage contract (S4a) — every classification is an explicit key.
+  "icon", "initial", "color", "t", "text", "desc", "kv", "crew", "modes",
+  "context", "activity", "sub", "code", "role", "state", "crumb",
+  "composerTarget", "statusDetail", "gate", "due", "owner",
+  "primaryAction", "brain", "agents", "title", "provisionalBanner", "enabled",
 ]);
 
 const isStructuralValue = (v: unknown) =>
-  typeof v === "string" || v === null || typeof v === "object";
+  typeof v === "string" || v === null || typeof v === "object" || typeof v === "boolean";
 
 function walk(node: unknown, path: string, out: string[]): void {
   if (Array.isArray(node)) {
@@ -39,7 +45,7 @@ function walk(node: unknown, path: string, out: string[]): void {
         }
       } else if (STRUCTURAL_KEYS.has(key)) {
         if (!isStructuralValue(value)) {
-          out.push(`${here} = ${JSON.stringify(value)} (expected a string, null, array, or object — never a number)`);
+          out.push(`${here} = ${JSON.stringify(value)} (expected a string, null, boolean, array, or object — never a number)`);
         }
       } else if (!isPending(value)) {
         out.push(`${here} = ${JSON.stringify(value)} (expected a PendingValue)`);
@@ -53,6 +59,7 @@ describe("engineering-value invariant (fail-closed)", () => {
   it("every key is operational, structural, or holds a PendingValue", () => {
     const violations: string[] = [];
     walk(jobs, "", violations);
+    walk(verticals, "verticals", violations);
     expect(
       violations,
       `unclassified or mistyped fields:\n${violations.join("\n")}`,

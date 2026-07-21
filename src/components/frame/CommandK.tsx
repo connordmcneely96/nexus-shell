@@ -3,15 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { groups } from "@/nav/config";
+import { verticals } from "@/shell/verticals";
 
 // Command palette. Groups and Tokens navigate; tools are findable but NOT
 // reachable — selecting one flashes its Phase 2 chip and goes nowhere.
 
 type Entry =
   | { kind: "route"; key: string; label: string; hint: string; href: string }
+  | { kind: "mission"; key: string; label: string; hint: string; vid: string }
   | { kind: "tool"; key: string; label: string; hint: string };
 
 const ENTRIES: Entry[] = [
+  ...verticals.map((v) => ({
+    kind: "mission" as const, key: `m-${v.id}`, label: v.crumb[v.crumb.length - 1], hint: "mission", vid: v.id,
+  })),
   ...groups.map((g) => ({
     kind: "route" as const, key: `g-${g.id}`, label: g.label, hint: `/g/${g.id}`, href: `/g/${g.id}`,
   })),
@@ -23,14 +28,18 @@ const ENTRIES: Entry[] = [
 
 const OPEN_EVENT = "nx-commandk-open";
 
-export function CommandKHint() {
+// The topbar omnibar — opens the palette via the existing event.
+export function Omnibar() {
   return (
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="rounded-sm border border-border-subtle px-2 py-1 font-mono text-xs text-text-faint"
+      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-raised px-3 py-1 text-sm text-text-muted"
+      style={{ maxWidth: "560px" }}
     >
-      ⌘K / Ctrl+K
+      <span className="truncate">Ask, search, create, run, deploy…</span>
+      {/* text-faint: decorative shortcut ornament */}
+      <span className="rounded-sm border border-border-subtle px-2 font-mono text-xs text-text-faint">⌘K</span>
     </button>
   );
 }
@@ -58,6 +67,7 @@ export default function CommandK() {
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener(OPEN_EVENT, show);
+      if (flashTimer.current) clearTimeout(flashTimer.current);
     };
   }, []);
 
@@ -73,6 +83,10 @@ export default function CommandK() {
     if (entry.kind === "route") {
       setOpen(false);
       router.push(entry.href);
+    } else if (entry.kind === "mission") {
+      setOpen(false);
+      window.dispatchEvent(new CustomEvent("nexus:set-vertical", { detail: { id: entry.vid } }));
+      router.push("/");
     } else {
       setFlashKey(entry.key);
       if (flashTimer.current) clearTimeout(flashTimer.current);
