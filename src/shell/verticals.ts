@@ -7,15 +7,17 @@ import type { VerticalStage } from "./contract";
 
 export const web: VerticalStage = {
   id: "web",
-  crumb: ["Website Factory", "Inner Animal Media", "Marketing site v7"],
-  status: "converged",
-  statusDetail: "V7 LIVE",
+  crumb: ["Website Factory", "Acme", "Build Acme client portal"],
+  status: "running",
   primaryAction: { label: "Deploy ↗", enabled: true, gate: "human" },
+  // Mode IDs are load-bearing for S4b — do not restyle, rename, or reorder.
   modes: [
-    { id: "preview", icon: "◫", label: "Preview" },
-    { id: "code", icon: "⌨", label: "Code" },
-    { id: "runs", icon: "▶", label: "Runs" },
-    { id: "analytics", icon: "∿", label: "Analytics" },
+    { id: "preview", icon: "◉", label: "Preview" },
+    { id: "canvas", icon: "▦", label: "Canvas" },
+    { id: "code", icon: "⟨⟩", label: "Code" },
+    { id: "data", icon: "▤", label: "Data" },
+    { id: "workflow", icon: "↝", label: "Workflow" },
+    { id: "terminal", icon: "❯_", label: "Terminal" },
   ],
   composerTarget: "@FORGE",
   crew: [
@@ -24,28 +26,28 @@ export const web: VerticalStage = {
     { initial: "H", color: "pending" },
   ],
   brain: {
-    title: "Website Factory",
-    desc: "Production website vertical — v7 live, self-serve runs enabled.",
+    title: "Build Acme client portal",
+    desc: "Design and ship a secure stakeholder portal grounded in Acme's existing visual system.",
     kv: [
-      ["Environment", "Production"],
-      ["Version", "v7"],
-      ["Runs", "128"],
+      ["Client", "Acme"],
+      ["Environment", "Preview"],
+      ["Runs", "4"],
       ["Crew", "3 agents"],
     ],
     agents: [
-      { code: "FORGE", name: "FORGE", role: "Site builder", state: "done" },
-      { code: "SENTINEL", name: "SENTINEL", role: "Review gate", state: "done" },
-      { code: "HERMES", name: "HERMES", role: "Orchestrator", state: "waiting" },
+      { code: "FORGE", name: "FORGE", role: "Site builder", state: "running" },
+      { code: "SENTINEL", name: "SENTINEL", role: "Review gate", state: "waiting" },
+      { code: "HERMES", name: "HERMES", role: "Orchestrator", state: "done" },
     ],
     context: [
-      { icon: "▤", name: "brand-kit", sub: "R2 · assets" },
-      { icon: "≡", name: "site-brief", sub: "R2 · brief" },
+      { icon: "▤", name: "acme-brand-kit", sub: "R2 · assets" },
+      { icon: "≡", name: "portal-brief", sub: "R2 · brief" },
       { icon: "⌗", name: "deploy-config", sub: "KV · config" },
     ],
     activity: [
-      { t: "2m", text: "Deploy of v7 completed" },
-      { t: "18m", text: "SENTINEL review passed" },
-      { t: "31m", text: "FORGE build finished" },
+      { t: "3m", text: "FORGE building portal shell" },
+      { t: "12m", text: "HERMES assigned subtasks to crew" },
+      { t: "26m", text: "Mission brief accepted" },
     ],
   },
 };
@@ -56,11 +58,13 @@ export const cad: VerticalStage = {
   status: "running",
   statusDetail: "CYCLE 3/20",
   primaryAction: { label: "Package — awaiting PE seal", enabled: false, gate: "pe-seal" },
+  // Mode IDs are load-bearing for S4b — do not restyle, rename, or reorder.
   modes: [
-    { id: "model", icon: "◇", label: "Model" },
-    { id: "drawings", icon: "▤", label: "Drawings" },
-    { id: "calcs", icon: "∑", label: "Calcs" },
-    { id: "bom", icon: "☰", label: "BOM" },
+    { id: "overview", icon: "◉", label: "Overview" },
+    { id: "duty", icon: "▤", label: "Duty" },
+    { id: "checks", icon: "✓", label: "Checks" },
+    { id: "artifacts", icon: "◇", label: "Artifacts" },
+    { id: "provenance", icon: "⛨", label: "Provenance" },
   ],
   composerTarget: "@HERMES",
   crew: [
@@ -71,7 +75,7 @@ export const cad: VerticalStage = {
     { initial: "A", color: "verdict" },
   ],
   provisionalBanner:
-    "PROVISIONAL — every engineering value is pending the TolerancePack. Not for sale, fabrication, or quotation until the PE seal is applied.",
+    "PROVISIONAL PACK SECTIONS IN USE — FATIGUE · BEARING L10 — NOT FOR SALE UNTIL PE-SIGNED",
   brain: {
     title: "Booster pump shaft package",
     desc: "Mission for Acme Water District — solver mid-run, deliverable gated on PE seal.",
