@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { verticals } from "@/shell/verticals";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
+import Composer from "./Composer";
 
 // Polymorphic center stage. Owns the current vertical, listens for
 // 'nexus:set-vertical', renders head + mode tabs + placeholder panes + Brain.
@@ -51,6 +52,7 @@ export default function Stage() {
         <section className="flex flex-1 items-center justify-center text-sm text-text-faint">
           {`${mode.label} pane — S4b`}
         </section>
+        <Composer stage={stage} />
       </section>
       <Brain stage={stage} />
     </div>
