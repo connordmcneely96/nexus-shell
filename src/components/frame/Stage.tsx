@@ -76,6 +76,8 @@ export default function Stage() {
   // The active run: the running CAD mission. The clock only ticks when live.
   const isLiveRun = view === "mission" && stage.id === "cad" && stage.status === "running";
   const run = useRunClock(isLiveRun);
+  // StageHead statusDetail reads the live cycle for the running CAD mission.
+  const headStage = isLiveRun ? { ...stage, statusDetail: `CYCLE ${run.cycle}/20` } : stage;
 
   return (
     <div className="flex h-full min-h-0">
@@ -84,7 +86,7 @@ export default function Stage() {
           <MissionList missions={missions} onSelect={selectMission} />
         ) : (
           <>
-            <StageHead stage={stage} />
+            <StageHead stage={headStage} />
             <div className="flex gap-1 border-b border-border-subtle px-4 py-2">
               {stage.modes.map((m) => (
                 <button
@@ -114,11 +116,11 @@ export default function Stage() {
                 </div>
               )}
             </section>
-            <Composer stage={stage} />
+            <Composer stage={stage} run={run} />
           </>
         )}
       </section>
-      <Brain stage={stage} />
+      <Brain stage={stage} run={run} />
       <GateDrawer />
     </div>
   );

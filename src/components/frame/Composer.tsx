@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import type { VerticalStage } from "@/shell/contract";
+import type { RunClock } from "@/shell/useRunClock";
 
 // Composer shell. Local-only: sends append to an in-memory queue rendered
-// above the input. NO network, NO storage — agent wire-up is Phase 2.
+// above the input AND a CONNOR entry to the live run feed. NO network, NO
+// storage — agent wire-up is Phase 2.
 
 const CREW_BG: Record<VerticalStage["crew"][number]["color"], string> = {
   accent: "bg-accent",
@@ -14,7 +16,7 @@ const CREW_BG: Record<VerticalStage["crew"][number]["color"], string> = {
   pending: "bg-pending",
 };
 
-export default function Composer({ stage }: { stage: VerticalStage }) {
+export default function Composer({ stage, run }: { stage: VerticalStage; run: RunClock }) {
   const [text, setText] = useState("");
   const [queued, setQueued] = useState<string[]>([]);
 
@@ -22,6 +24,7 @@ export default function Composer({ stage }: { stage: VerticalStage }) {
     const t = text.trim();
     if (!t) return;
     setQueued((q) => [...q, t]);
+    run.addActivity(`CONNOR → ${stage.composerTarget}: ${t}`);
     setText("");
   };
 
