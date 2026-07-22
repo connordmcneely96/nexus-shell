@@ -3,19 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { groups } from "@/nav/config";
-import { verticals } from "@/shell/verticals";
+import { missions } from "@/mock/missions";
 
-// Command palette. Groups and Tokens navigate; tools are findable but NOT
-// reachable — selecting one flashes its Phase 2 chip and goes nowhere.
+// Command palette. Groups and Tokens navigate; missions open the Missions
+// surface; tools are findable but NOT reachable — selecting one flashes its
+// Phase 2 chip and goes nowhere.
 
 type Entry =
   | { kind: "route"; key: string; label: string; hint: string; href: string }
-  | { kind: "mission"; key: string; label: string; hint: string; vid: string }
+  | { kind: "mission"; key: string; label: string; hint: string; mid: string }
   | { kind: "tool"; key: string; label: string; hint: string };
 
 const ENTRIES: Entry[] = [
-  ...verticals.map((v) => ({
-    kind: "mission" as const, key: `m-${v.id}`, label: v.crumb[v.crumb.length - 1], hint: "mission", vid: v.id,
+  ...missions.map((m) => ({
+    kind: "mission" as const, key: `m-${m.id}`, label: m.name, hint: m.vertical, mid: m.id,
   })),
   ...groups.map((g) => ({
     kind: "route" as const, key: `g-${g.id}`, label: g.label, hint: `/g/${g.id}`, href: `/g/${g.id}`,
@@ -85,7 +86,7 @@ export default function CommandK() {
       router.push(entry.href);
     } else if (entry.kind === "mission") {
       setOpen(false);
-      window.dispatchEvent(new CustomEvent("nexus:set-vertical", { detail: { id: entry.vid } }));
+      window.dispatchEvent(new CustomEvent("nexus:open-mission", { detail: { id: entry.mid } }));
       router.push("/");
     } else {
       setFlashKey(entry.key);

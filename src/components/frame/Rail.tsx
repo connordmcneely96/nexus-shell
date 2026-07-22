@@ -59,6 +59,20 @@ export default function Rail() {
                 </ul>
               )}
             </li>
+          ) : item.id === "missions" ? (
+            // The Missions item is live; every other non-Products item is inert.
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("nexus:show-missions"))}
+                className="flex w-full items-center justify-between rounded-md border border-accent px-3 py-2 text-sm text-accent"
+              >
+                {item.label}
+                {item.badge !== undefined && (
+                  <span className="rounded-full bg-surface-overlay px-2 text-xs text-text-muted">{item.badge}</span>
+                )}
+              </button>
+            </li>
           ) : (
             <li key={item.id}>
               <div
