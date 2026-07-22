@@ -7,6 +7,7 @@ import StageHead from "./StageHead";
 import Brain from "./Brain";
 import Composer from "./Composer";
 import MissionList from "./MissionList";
+import CadPanes from "./cad/CadPanes";
 
 // Polymorphic center stage. Owns view + vertical + selected mission. Default
 // view is the Missions list. Selecting a mission drives the StageHead chip
@@ -93,8 +94,14 @@ export default function Stage() {
                 </button>
               ))}
             </div>
-            <section className="flex flex-1 items-center justify-center text-sm text-text-faint">
-              {`${mode.label} pane — S4b`}
+            <section className="min-h-0 flex-1 overflow-y-auto">
+              {stage.id === "cad" ? (
+                <CadPanes modeId={mode.id} />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-text-faint">
+                  {`${mode.label} pane — S4b`}
+                </div>
+              )}
             </section>
             <Composer stage={stage} />
           </>
