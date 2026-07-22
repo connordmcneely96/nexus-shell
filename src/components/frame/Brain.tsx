@@ -62,13 +62,27 @@ export default function Brain({ stage }: { stage: VerticalStage }) {
           </div>
         )}
         {tab === "Agents" &&
-          b.agents.map((a) => (
-            <div key={a.code} className="flex items-center gap-2 rounded-md px-2 py-2">
-              <span className="font-mono text-xs text-text-primary">{a.code}</span>
-              <span className="text-xs text-text-muted">{a.role}</span>
-              <span className={`ml-auto text-xs ${AGENT_STATE_CLASS[a.state]}`}>{a.state}</span>
-            </div>
-          ))}
+          b.agents.map((a) =>
+            a.code === "CAD-REVIEWER" ? (
+              // The reviewer row opens the Gate A dimensional-comparison drawer.
+              <button
+                key={a.code}
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("nexus:open-gate"))}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-surface-overlay"
+              >
+                <span className="font-mono text-xs text-text-primary">{a.code}</span>
+                <span className="text-xs text-text-muted">{a.role}</span>
+                <span className={`ml-auto text-xs ${AGENT_STATE_CLASS[a.state]}`}>{a.state}</span>
+              </button>
+            ) : (
+              <div key={a.code} className="flex items-center gap-2 rounded-md px-2 py-2">
+                <span className="font-mono text-xs text-text-primary">{a.code}</span>
+                <span className="text-xs text-text-muted">{a.role}</span>
+                <span className={`ml-auto text-xs ${AGENT_STATE_CLASS[a.state]}`}>{a.state}</span>
+              </div>
+            ),
+          )}
         {tab === "Activity" &&
           b.activity.map((a) => (
             <div key={`${a.t}-${a.text}`} className="flex gap-2 px-2 py-2">

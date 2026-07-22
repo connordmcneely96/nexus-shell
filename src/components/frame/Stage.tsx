@@ -9,6 +9,7 @@ import Brain from "./Brain";
 import Composer from "./Composer";
 import MissionList from "./MissionList";
 import CadPanes from "./cad/CadPanes";
+import GateDrawer from "./GateDrawer";
 
 // Polymorphic center stage. Owns view + vertical + selected mission. Default
 // view is the Missions list. Selecting a mission drives the StageHead chip
@@ -118,6 +119,7 @@ export default function Stage() {
         )}
       </section>
       <Brain stage={stage} />
+      <GateDrawer />
     </div>
   );
 }

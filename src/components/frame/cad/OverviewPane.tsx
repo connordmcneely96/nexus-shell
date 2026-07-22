@@ -29,7 +29,16 @@ export default function OverviewPane({
       </p>
 
       {status === "running" && (
-        <PlanCard cycle={run.cycle} ready={ready} authorized={authorized} onConfirm={confirm} />
+        <>
+          <PlanCard cycle={run.cycle} ready={ready} authorized={authorized} onConfirm={confirm} />
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("nexus:open-gate"))}
+            className="mt-3 rounded-full border border-border-subtle px-3 py-1 text-xs text-text-muted"
+          >
+            Gate A
+          </button>
+        </>
       )}
 
       {status === "infeasible" && (
