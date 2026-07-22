@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { verticals } from "@/shell/verticals";
 import { missions, type Mission } from "@/mock/missions";
+import { useRunClock } from "@/shell/useRunClock";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
 import Composer from "./Composer";
 import MissionList from "./MissionList";
 import CadPanes from "./cad/CadPanes";
+import GateDrawer from "./GateDrawer";
 
 // Polymorphic center stage. Owns view + vertical + selected mission. Default
 // view is the Missions list. Selecting a mission drives the StageHead chip
@@ -71,6 +73,12 @@ export default function Stage() {
     : base;
   const mode = stage.modes.find((m) => m.id === modeId) ?? stage.modes[0];
 
+  // The active run: the running CAD mission. The clock only ticks when live.
+  const isLiveRun = view === "mission" && stage.id === "cad" && stage.status === "running";
+  const run = useRunClock(isLiveRun);
+  // StageHead statusDetail reads the live cycle for the running CAD mission.
+  const headStage = isLiveRun ? { ...stage, statusDetail: `CYCLE ${run.cycle}/20` } : stage;
+
   return (
     <div className="flex h-full min-h-0">
       <section className="flex min-w-0 flex-1 flex-col">
@@ -78,7 +86,7 @@ export default function Stage() {
           <MissionList missions={missions} onSelect={selectMission} />
         ) : (
           <>
-            <StageHead stage={stage} />
+            <StageHead stage={headStage} />
             <div className="flex gap-1 border-b border-border-subtle px-4 py-2">
               {stage.modes.map((m) => (
                 <button
@@ -96,18 +104,24 @@ export default function Stage() {
             </div>
             <section className="min-h-0 flex-1 overflow-y-auto">
               {stage.id === "cad" ? (
-                <CadPanes modeId={mode.id} />
+                <CadPanes
+                  modeId={mode.id}
+                  status={stage.status}
+                  blockingConstraint={selected?.blockingConstraint}
+                  run={run}
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-text-faint">
                   {`${mode.label} pane — S4b`}
                 </div>
               )}
             </section>
-            <Composer stage={stage} />
+            <Composer stage={stage} run={run} />
           </>
         )}
       </section>
-      <Brain stage={stage} />
+      <Brain stage={stage} run={run} />
+      <GateDrawer />
     </div>
   );
 }

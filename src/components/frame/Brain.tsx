@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import type { VerticalStage } from "@/shell/contract";
+import type { RunClock } from "@/shell/useRunClock";
 
-// System Brain — Context / Agents / Activity, rendered entirely from
-// stage.brain. The invariant card is pinned at the bottom, always visible.
+// System Brain — Context / Agents / Activity. Config is the t=0 baseline; the
+// run clock overlays live agent states and prepends live activity entries.
+// The invariant card is pinned at the bottom, always visible.
 
 const TABS = ["Context", "Agents", "Activity"] as const;
 
@@ -14,7 +16,7 @@ const AGENT_STATE_CLASS: Record<string, string> = {
   done: "text-success", waiting: "text-pending",
 };
 
-export default function Brain({ stage }: { stage: VerticalStage }) {
+export default function Brain({ stage, run }: { stage: VerticalStage; run: RunClock }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Context");
   const b = stage.brain;
 
@@ -62,20 +64,42 @@ export default function Brain({ stage }: { stage: VerticalStage }) {
           </div>
         )}
         {tab === "Agents" &&
-          b.agents.map((a) => (
-            <div key={a.code} className="flex items-center gap-2 rounded-md px-2 py-2">
-              <span className="font-mono text-xs text-text-primary">{a.code}</span>
-              <span className="text-xs text-text-muted">{a.role}</span>
-              <span className={`ml-auto text-xs ${AGENT_STATE_CLASS[a.state]}`}>{a.state}</span>
-            </div>
-          ))}
-        {tab === "Activity" &&
-          b.activity.map((a) => (
-            <div key={`${a.t}-${a.text}`} className="flex gap-2 px-2 py-2">
-              <span className="shrink-0 font-mono text-xs text-text-faint">{a.t}</span>
-              <span className="text-xs text-text-muted">{a.text}</span>
-            </div>
-          ))}
+          b.agents.map((a) => {
+            // Config is the t=0 state; the run clock overlays the live state.
+            const state = run.agentStates[a.code] ?? a.state;
+            return a.code === "CAD-REVIEWER" ? (
+              // The reviewer row opens the Gate A dimensional-comparison drawer.
+              <button
+                key={a.code}
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("nexus:open-gate"))}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-surface-overlay"
+              >
+                <span className="font-mono text-xs text-text-primary">{a.code}</span>
+                <span className="text-xs text-text-muted">{a.role}</span>
+                <span className={`ml-auto text-xs ${AGENT_STATE_CLASS[state]}`}>{state}</span>
+              </button>
+            ) : (
+              <div key={a.code} className="flex items-center gap-2 rounded-md px-2 py-2">
+                <span className="font-mono text-xs text-text-primary">{a.code}</span>
+                <span className="text-xs text-text-muted">{a.role}</span>
+                <span className={`ml-auto text-xs ${AGENT_STATE_CLASS[state]}`}>{state}</span>
+              </div>
+            );
+          })}
+        {tab === "Activity" && (
+          <div>
+            {run.active && (
+              <div className="mb-2 px-2 text-xs text-text-faint">LIVE · polls 15s + focus</div>
+            )}
+            {[...run.activity, ...b.activity].map((a, i) => (
+              <div key={i} className="flex gap-2 px-2 py-2">
+                <span className="shrink-0 font-mono text-xs text-text-faint">{a.t}</span>
+                <span className="text-xs text-text-muted">{a.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="border-t border-border-subtle p-3">
         <div className="rounded-md border border-border-strong bg-surface-overlay p-3 text-xs text-text-muted">

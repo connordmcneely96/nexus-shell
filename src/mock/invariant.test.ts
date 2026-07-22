@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { jobs } from "./fixtures";
 import { missions } from "./missions";
+import { RUN_TIMELINE } from "./timeline";
 import { verticals } from "../shell/verticals";
 import type { PendingValue } from "./types";
 
@@ -16,7 +17,15 @@ const isPending = (v: unknown): v is PendingValue =>
 const OPERATIONAL_KEYS = new Set([
   "cost", "elapsed", "runCount", "cycle", "maxCycles",
   "subtasks", "percentComplete", "createdAt", "updatedAt",
+  // Timeline script (S5) — cycle already above.
+  "atSec",
 ]);
+
+// String-enum maps: agentStates is agent-code → run-state. The keys are
+// dynamic (the roster), so it is classified here as a whole rather than
+// per-key. Fail-closed still holds: every VALUE must be a string — a number
+// smuggled in as a state would be flagged.
+const STRING_MAP_KEYS = new Set(["agentStates"]);
 
 // Structural keys — labels, ids, flags, containers. Never a number.
 const STRUCTURAL_KEYS = new Set([
@@ -43,6 +52,18 @@ function walk(node: unknown, path: string, out: string[]): void {
   if (node && typeof node === "object") {
     for (const [key, value] of Object.entries(node)) {
       const here = path ? `${path}.${key}` : key;
+      if (STRING_MAP_KEYS.has(key)) {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          for (const [k2, v2] of Object.entries(value)) {
+            if (typeof v2 !== "string") {
+              out.push(`${here}.${k2} = ${JSON.stringify(v2)} (expected a string state)`);
+            }
+          }
+        } else {
+          out.push(`${here} = ${JSON.stringify(value)} (expected a string map)`);
+        }
+        continue; // classified leaf — do not recurse into dynamic roster keys
+      }
       if (OPERATIONAL_KEYS.has(key)) {
         if (typeof value !== "number") {
           out.push(`${here} = ${JSON.stringify(value)} (expected a number)`);
@@ -65,6 +86,7 @@ describe("engineering-value invariant (fail-closed)", () => {
     walk(jobs, "", violations);
     walk(verticals, "verticals", violations);
     walk(missions, "missions", violations);
+    walk(RUN_TIMELINE, "timeline", violations);
     expect(
       violations,
       `unclassified or mistyped fields:\n${violations.join("\n")}`,
