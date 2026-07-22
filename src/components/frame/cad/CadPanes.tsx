@@ -1,9 +1,10 @@
 import OverviewPane from "./OverviewPane";
 import DutyPane from "./DutyPane";
 import ChecksPane from "./ChecksPane";
+import ArtifactsPane from "./ArtifactsPane";
+import ProvenancePane from "./ProvenancePane";
 
-// CAD center-stage pane switcher. Overview/Duty/Checks land in commit 3;
-// Artifacts/Provenance arrive in commit 4 (stub until then).
+// CAD center-stage pane switcher — all five load-bearing modes are wired.
 
 export default function CadPanes({ modeId }: { modeId: string }) {
   switch (modeId) {
@@ -13,6 +14,10 @@ export default function CadPanes({ modeId }: { modeId: string }) {
       return <DutyPane />;
     case "checks":
       return <ChecksPane />;
+    case "artifacts":
+      return <ArtifactsPane />;
+    case "provenance":
+      return <ProvenancePane />;
     default:
       return (
         <div className="flex h-full items-center justify-center text-sm text-text-faint">
