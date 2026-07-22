@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { verticals } from "@/shell/verticals";
 import { missions, type Mission } from "@/mock/missions";
+import { useRunClock } from "@/shell/useRunClock";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
 import Composer from "./Composer";
@@ -71,6 +72,10 @@ export default function Stage() {
     : base;
   const mode = stage.modes.find((m) => m.id === modeId) ?? stage.modes[0];
 
+  // The active run: the running CAD mission. The clock only ticks when live.
+  const isLiveRun = view === "mission" && stage.id === "cad" && stage.status === "running";
+  const run = useRunClock(isLiveRun);
+
   return (
     <div className="flex h-full min-h-0">
       <section className="flex min-w-0 flex-1 flex-col">
@@ -96,7 +101,12 @@ export default function Stage() {
             </div>
             <section className="min-h-0 flex-1 overflow-y-auto">
               {stage.id === "cad" ? (
-                <CadPanes modeId={mode.id} />
+                <CadPanes
+                  modeId={mode.id}
+                  status={stage.status}
+                  blockingConstraint={selected?.blockingConstraint}
+                  run={run}
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-text-faint">
                   {`${mode.label} pane — S4b`}

@@ -1,3 +1,5 @@
+import type { FiveState } from "@/shell/contract";
+import type { RunClock } from "@/shell/useRunClock";
 import OverviewPane from "./OverviewPane";
 import DutyPane from "./DutyPane";
 import ChecksPane from "./ChecksPane";
@@ -6,10 +8,20 @@ import ProvenancePane from "./ProvenancePane";
 
 // CAD center-stage pane switcher — all five load-bearing modes are wired.
 
-export default function CadPanes({ modeId }: { modeId: string }) {
+export default function CadPanes({
+  modeId,
+  status,
+  blockingConstraint,
+  run,
+}: {
+  modeId: string;
+  status: FiveState;
+  blockingConstraint?: string;
+  run: RunClock;
+}) {
   switch (modeId) {
     case "overview":
-      return <OverviewPane />;
+      return <OverviewPane status={status} blockingConstraint={blockingConstraint} run={run} />;
     case "duty":
       return <DutyPane />;
     case "checks":

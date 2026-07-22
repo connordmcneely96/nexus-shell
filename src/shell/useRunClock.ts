@@ -19,13 +19,14 @@ export interface RunActivity {
 export interface RunClock {
   active: boolean;
   elapsed: number;
-  cycle: number;
+  cycle: number; // driven by the scripted poll only — a click never teleports it
+  confirmedCycle: number; // highest cycle the confirm gate has authorized
   agentStates: Record<string, "done" | "running" | "waiting">;
   activity: RunActivity[]; // newest first
   paused: boolean;
   setPaused: (p: boolean) => void;
   addActivity: (text: string) => void; // CONNOR / composer entries
-  advanceCycle: (next: number) => void; // plan-card confirm
+  advanceCycle: (next: number) => void; // plan-card confirm authorizes the next cycle
 }
 
 export function useRunClock(active: boolean): RunClock {
@@ -60,8 +61,10 @@ export function useRunClock(active: boolean): RunClock {
     };
   }, [active]);
 
+  // The displayed cycle comes from the scripted poll ALONE. A confirm click
+  // authorizes the next cycle (confirmedCycle) but never teleports progress —
+  // un-authored progress would violate the sprint's scripted-timeline rule.
   const scripted = stateAt(elapsed);
-  const cycle = Math.max(scripted.cycle, confirmedCycle);
   const firedNewestFirst = [...scripted.firedActivity].reverse();
   const activity = active ? [...extra, ...firedNewestFirst] : [];
 
@@ -75,7 +78,8 @@ export function useRunClock(active: boolean): RunClock {
   return {
     active,
     elapsed,
-    cycle: active ? cycle : BASE_CYCLE,
+    cycle: active ? scripted.cycle : BASE_CYCLE,
+    confirmedCycle,
     agentStates: active ? scripted.agentStates : {},
     activity,
     paused,
