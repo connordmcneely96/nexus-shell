@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { jobs } from "./fixtures";
+import { missions } from "./missions";
 import { verticals } from "../shell/verticals";
 import type { PendingValue } from "./types";
 
@@ -26,6 +27,9 @@ const STRUCTURAL_KEYS = new Set([
   "context", "activity", "sub", "code", "role", "state", "crumb",
   "composerTarget", "statusDetail", "gate", "due", "owner",
   "primaryAction", "brain", "agents", "title", "provisionalBanner", "enabled",
+  // Mission layer (S4b) — cost/elapsed/runCount are already operational,
+  // blockingConstraint already structural.
+  "vertical", "clientRef", "workspaceRef", "client",
 ]);
 
 const isStructuralValue = (v: unknown) =>
@@ -60,6 +64,7 @@ describe("engineering-value invariant (fail-closed)", () => {
     const violations: string[] = [];
     walk(jobs, "", violations);
     walk(verticals, "verticals", violations);
+    walk(missions, "missions", violations);
     expect(
       violations,
       `unclassified or mistyped fields:\n${violations.join("\n")}`,
