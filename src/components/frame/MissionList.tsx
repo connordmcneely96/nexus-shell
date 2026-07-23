@@ -39,7 +39,9 @@ export default function MissionList({
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <StatusChip state={m.status} pulse={m.status === "running"} />
                   <span className="font-mono text-xs text-text-muted">
-                    {`$${m.cost.toFixed(2)} · ${m.elapsed}s · ${m.runCount} runs`}
+                    {m.status === "infeasible" && m.cycle !== undefined
+                      ? `stopped · cycle ${m.cycle} of ${m.maxCycles}`
+                      : `$${m.cost.toFixed(2)} · ${m.elapsed}s · ${m.runCount} runs`}
                   </span>
                 </div>
                 {m.status === "infeasible" && m.blockingConstraint && (

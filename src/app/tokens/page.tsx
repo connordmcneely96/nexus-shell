@@ -92,7 +92,8 @@ export default function TokensPage() {
         <p className="mt-3 max-w-prose text-sm text-text-muted">
           infeasible is a valid engineering result, not a fault: the pipeline finished its work
           and answered that no design satisfies the duty. It is rendered with its own token
-          (--nx-verdict), a dashed border, and its own label — never with the failed treatment.
+          (--nx-verdict), a dashed border, a diamond marker, and its own label — dashed + diamond,
+          never red — a determinate answer, never the failed treatment.
         </p>
       </Section>
     </main>

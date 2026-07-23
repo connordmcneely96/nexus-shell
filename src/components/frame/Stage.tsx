@@ -113,6 +113,8 @@ export default function Stage() {
                   modeId={mode.id}
                   status={stage.status}
                   blockingConstraint={selected?.blockingConstraint}
+                  cycle={selected?.cycle}
+                  maxCycles={selected?.maxCycles}
                   run={run}
                 />
               ) : (

@@ -9,10 +9,14 @@ import StatusChip from "@/components/gadgets/StatusChip";
 export default function OverviewPane({
   status,
   blockingConstraint,
+  cycle,
+  maxCycles,
   run,
 }: {
   status: FiveState;
   blockingConstraint?: string;
+  cycle?: number;
+  maxCycles?: number;
   run: RunClock;
 }) {
   const ready = run.agentStates["MODELER"] === "done";
@@ -48,6 +52,11 @@ export default function OverviewPane({
             No further cycles: {blockingConstraint ?? "a named constraint governs"}. Revise the duty
             to continue.
           </div>
+          {cycle !== undefined && (
+            <p className="mt-2 text-xs text-verdict">
+              Solver stopped at cycle {cycle} of {maxCycles} — infeasibility is proven, not timed out.
+            </p>
+          )}
           <p className="mt-2 text-xs text-text-muted">
             Infeasible is a determinate engineering answer — a design that says no — not a fault.
           </p>

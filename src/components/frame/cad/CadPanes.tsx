@@ -12,16 +12,28 @@ export default function CadPanes({
   modeId,
   status,
   blockingConstraint,
+  cycle,
+  maxCycles,
   run,
 }: {
   modeId: string;
   status: FiveState;
   blockingConstraint?: string;
+  cycle?: number;
+  maxCycles?: number;
   run: RunClock;
 }) {
   switch (modeId) {
     case "overview":
-      return <OverviewPane status={status} blockingConstraint={blockingConstraint} run={run} />;
+      return (
+        <OverviewPane
+          status={status}
+          blockingConstraint={blockingConstraint}
+          cycle={cycle}
+          maxCycles={maxCycles}
+          run={run}
+        />
+      );
     case "duty":
       return <DutyPane />;
     case "checks":
