@@ -1,4 +1,5 @@
 import { MachinedBlank } from "@/components/gadgets";
+import StatusChip from "@/components/gadgets/StatusChip";
 
 // Artifacts — the deliverables and their build state. Revisions are pending
 // until a PE seal is applied, so every Rev cell is a machined blank.
@@ -9,21 +10,6 @@ const ARTIFACTS: { name: string; fmt: string; state: "running" | "pending" }[] =
   { name: "Calc report", fmt: "PDF", state: "pending" },
   { name: "BOM", fmt: "CSV", state: "pending" },
 ];
-
-function StateChip({ state }: { state: "running" | "pending" }) {
-  if (state === "running") {
-    return (
-      <span className="inline-flex animate-pulse items-center rounded-full border border-accent px-2 py-1 text-xs text-accent">
-        running
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center rounded-full border border-pending px-2 py-1 text-xs text-pending">
-      pending
-    </span>
-  );
-}
 
 export default function ArtifactsPane() {
   return (
@@ -43,7 +29,7 @@ export default function ArtifactsPane() {
             <tr key={a.name} className="border-t border-border-subtle">
               <td className="py-2 text-sm text-text-primary">{a.name}</td>
               <td className="py-2 font-mono text-xs text-text-muted">{a.fmt}</td>
-              <td className="py-2"><StateChip state={a.state} /></td>
+              <td className="py-2"><StatusChip state={a.state} pulse={a.state === "running"} /></td>
               <td className="py-2"><MachinedBlank>{"<<rev>>"}</MachinedBlank></td>
             </tr>
           ))}

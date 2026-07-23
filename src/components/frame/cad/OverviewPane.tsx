@@ -1,6 +1,7 @@
 import type { FiveState } from "@/shell/contract";
 import type { RunClock } from "@/shell/useRunClock";
 import PlanCard from "@/components/gadgets/PlanCard";
+import StatusChip from "@/components/gadgets/StatusChip";
 
 // Overview — the confirm gate for a running run, or the terminal answer for a
 // run that has already resolved. The UI never offers to re-run a proven "no".
@@ -69,9 +70,7 @@ export default function OverviewPane({
         <div className="mt-6 max-w-xl rounded-md border border-border-subtle bg-surface-raised p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm text-text-primary">Sibling run · duty sweep</span>
-            <span className="rounded-full border border-dashed border-verdict px-3 py-1 text-xs text-verdict">
-              infeasible
-            </span>
+            <StatusChip state="infeasible" />
           </div>
           <div className="mt-2 text-xs text-verdict">shaft deflection limit governs</div>
           <p className="mt-2 text-xs text-text-muted">
