@@ -68,7 +68,12 @@ export default function Stage() {
         ...base,
         crumb: [...base.crumb.slice(0, -1), selected.name],
         status: selected.status,
-        statusDetail: selected.status === "running" ? base.statusDetail : undefined,
+        statusDetail:
+          selected.status === "running"
+            ? base.statusDetail
+            : selected.status === "infeasible" && selected.cycle !== undefined
+              ? `stopped · cycle ${selected.cycle} of ${selected.maxCycles}`
+              : undefined,
       }
     : base;
   const mode = stage.modes.find((m) => m.id === modeId) ?? stage.modes[0];
