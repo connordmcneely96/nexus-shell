@@ -2,6 +2,9 @@
 // here, not even as illustration; filler text is the token name. Reached by
 // direct URL only; deliberately unlinked (no nav exists yet).
 
+import type { FiveState } from "@/shell/contract";
+import StatusChip from "@/components/gadgets/StatusChip";
+
 const COLOR_CHIPS: [string, string][] = [
   ["--nx-surface-base", "#0B0D10"],
   ["--nx-surface-raised", "#12151A"],
@@ -17,15 +20,8 @@ const SPACES = ["1", "2", "3", "4", "5", "6", "8", "10", "12", "16"];
 const RADII = ["xs", "sm", "md", "lg", "xl", "full"];
 const TYPE_SIZES = ["xs", "sm", "base", "lg", "xl", "2xl"];
 
-// infeasible vs failed: two hue-independent signals — border style (dashed vs
-// solid) and label text. Both survive greyscale.
-const STATUS = [
-  { label: "pending", token: "--nx-pending", borderStyle: "solid" },
-  { label: "running", token: "--nx-accent", borderStyle: "solid" },
-  { label: "converged", token: "--nx-success", borderStyle: "solid" },
-  { label: "infeasible", token: "--nx-verdict", borderStyle: "dashed" },
-  { label: "failed", token: "--nx-danger", borderStyle: "solid" },
-];
+// The five states rendered from the single StatusChip source of truth.
+const STATUS: FiveState[] = ["pending", "running", "converged", "infeasible", "failed"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -90,19 +86,14 @@ export default function TokensPage() {
       <Section title="Status">
         <div className="flex flex-wrap items-center gap-3">
           {STATUS.map((s) => (
-            <span
-              key={s.label}
-              className="rounded-full px-4 py-2 text-sm"
-              style={{ color: `var(${s.token})`, border: `1px ${s.borderStyle} var(${s.token})` }}
-            >
-              {s.label}
-            </span>
+            <StatusChip key={s} state={s} />
           ))}
         </div>
         <p className="mt-3 max-w-prose text-sm text-text-muted">
           infeasible is a valid engineering result, not a fault: the pipeline finished its work
           and answered that no design satisfies the duty. It is rendered with its own token
-          (--nx-verdict), a dashed border, and its own label — never with the failed treatment.
+          (--nx-verdict), a dashed border, a diamond marker, and its own label — dashed + diamond,
+          never red — a determinate answer, never the failed treatment.
         </p>
       </Section>
     </main>

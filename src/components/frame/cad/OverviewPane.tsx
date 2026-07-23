@@ -1,6 +1,7 @@
 import type { FiveState } from "@/shell/contract";
 import type { RunClock } from "@/shell/useRunClock";
 import PlanCard from "@/components/gadgets/PlanCard";
+import StatusChip from "@/components/gadgets/StatusChip";
 
 // Overview — the confirm gate for a running run, or the terminal answer for a
 // run that has already resolved. The UI never offers to re-run a proven "no".
@@ -8,10 +9,14 @@ import PlanCard from "@/components/gadgets/PlanCard";
 export default function OverviewPane({
   status,
   blockingConstraint,
+  cycle,
+  maxCycles,
   run,
 }: {
   status: FiveState;
   blockingConstraint?: string;
+  cycle?: number;
+  maxCycles?: number;
   run: RunClock;
 }) {
   const ready = run.agentStates["MODELER"] === "done";
@@ -47,6 +52,11 @@ export default function OverviewPane({
             No further cycles: {blockingConstraint ?? "a named constraint governs"}. Revise the duty
             to continue.
           </div>
+          {cycle !== undefined && (
+            <p className="mt-2 text-xs text-verdict">
+              Solver stopped at cycle {cycle} of {maxCycles} — infeasibility is proven, not timed out.
+            </p>
+          )}
           <p className="mt-2 text-xs text-text-muted">
             Infeasible is a determinate engineering answer — a design that says no — not a fault.
           </p>
@@ -69,9 +79,7 @@ export default function OverviewPane({
         <div className="mt-6 max-w-xl rounded-md border border-border-subtle bg-surface-raised p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm text-text-primary">Sibling run · duty sweep</span>
-            <span className="rounded-full border border-dashed border-verdict px-3 py-1 text-xs text-verdict">
-              infeasible
-            </span>
+            <StatusChip state="infeasible" />
           </div>
           <div className="mt-2 text-xs text-verdict">shaft deflection limit governs</div>
           <p className="mt-2 text-xs text-text-muted">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MachinedBlank } from "@/components/gadgets";
+import StatusChip from "@/components/gadgets/StatusChip";
 
 // Gate A inspection drawer. This slide-over IS closable (Escape + backdrop) —
 // it is inspection, not a warning. Every value is a machined blank until the
@@ -72,7 +73,7 @@ export default function GateDrawer() {
           ))}
           <div className="flex items-center justify-between gap-2 border-t border-border-subtle pt-2">
             <span className="text-xs text-text-muted">verdict</span>
-            <span className="rounded-full border border-pending px-2 py-1 text-xs text-pending">pending</span>
+            <StatusChip state="pending" />
           </div>
         </div>
         <p className="mt-4 text-xs text-text-faint">

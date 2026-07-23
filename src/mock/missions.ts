@@ -14,6 +14,8 @@ export interface Mission {
   cost: number; // USD — sum across the job's runs
   elapsed: number; // seconds — sum
   runCount: number; // sum
+  cycle?: number; // representative run's cycle (CAD only) — drives the stopped line
+  maxCycles?: number; // representative run's budget (CAD only)
   clientRef: string; // e.g. 'client:acme-water' — Phase 2 tenancy stub
   workspaceRef: string; // e.g. 'workspace:job-1' — Phase 2 tenancy stub
 }
@@ -35,6 +37,8 @@ const cadMissionFromJob = (job: (typeof jobs)[number]): Mission => {
     cost: sum((r) => r.cost),
     elapsed: sum((r) => r.elapsed),
     runCount: sum((r) => r.runCount),
+    cycle: last.cycle,
+    maxCycles: last.maxCycles,
     clientRef: "client:acme-water",
     workspaceRef: `workspace:${job.id}`,
   };

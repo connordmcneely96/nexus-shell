@@ -1,15 +1,9 @@
-import type { FiveState, VerticalStage } from "@/shell/contract";
+import type { VerticalStage } from "@/shell/contract";
+import StatusChip from "@/components/gadgets/StatusChip";
 
-// Stage head — crumb, five-state chip, Share ghost, primary action. The
-// provisional banner renders ABOVE the head with no close affordance.
-
-const STATUS_CLASS: Record<FiveState, string> = {
-  pending: "border-solid border-pending text-pending",
-  running: "border-solid border-accent text-accent",
-  converged: "border-solid border-success text-success",
-  infeasible: "border-dashed border-verdict text-verdict", // dashed: hue-independent signal
-  failed: "border-solid border-danger text-danger",
-};
+// Stage head — crumb, five-state chip (via StatusChip), Share ghost, primary
+// action. The provisional banner renders ABOVE the head with no close
+// affordance.
 
 export default function StageHead({ stage }: { stage: VerticalStage }) {
   const { primaryAction } = stage;
@@ -29,9 +23,8 @@ export default function StageHead({ stage }: { stage: VerticalStage }) {
             </span>
           ))}
         </nav>
-        <span className={`shrink-0 rounded-full border px-3 py-1 text-xs ${STATUS_CLASS[stage.status]}`}>
-          {stage.status}
-          {stage.statusDetail && <span className="ml-2 font-mono">{stage.statusDetail}</span>}
+        <span className="shrink-0">
+          <StatusChip state={stage.status} detail={stage.statusDetail} pulse={stage.status === "running"} />
         </span>
         <button
           type="button"

@@ -42,7 +42,11 @@ export const jobs: Job[] = [
     name: "Gearbox output shaft",
     runs: [
       run("r-1a", "baseline", "converged", { cost: 42.18, elapsed: 313, runCount: 3, cycle: 12, maxCycles: 12, subtasks: 5, percentComplete: 100 }),
-      run("r-1b", "duty sweep", "infeasible", { cost: 18.05, elapsed: 121, runCount: 1, cycle: 40, maxCycles: 40, subtasks: 5, percentComplete: 100 }, "shaft deflection limit governs"),
+      // Infeasible terminates early by nature: the solver PROVED no design
+      // exists and stopped. A run at maxCycles is exhaustion (a resource
+      // outcome), which is a different upstream state — see the Phase-2
+      // reconciliation note in types.ts.
+      run("r-1b", "duty sweep", "infeasible", { cost: 18.05, elapsed: 121, runCount: 1, cycle: 3, maxCycles: 20, subtasks: 5, percentComplete: 100 }, "shaft deflection limit governs"),
     ],
   },
   {
