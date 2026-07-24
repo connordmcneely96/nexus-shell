@@ -5,6 +5,7 @@ import DutyPane from "./DutyPane";
 import ChecksPane from "./ChecksPane";
 import ArtifactsPane from "./ArtifactsPane";
 import ProvenancePane from "./ProvenancePane";
+import ModelPane from "./model/ModelPane";
 
 // CAD center-stage pane switcher — all five load-bearing modes are wired.
 
@@ -42,6 +43,8 @@ export default function CadPanes({
       return <ArtifactsPane />;
     case "provenance":
       return <ProvenancePane />;
+    case "model":
+      return <ModelPane />;
     default:
       return (
         <div className="flex h-full items-center justify-center text-sm text-text-faint">

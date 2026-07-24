@@ -65,6 +65,7 @@ export const cad: VerticalStage = {
     { id: "checks", icon: "✓", label: "Checks" },
     { id: "artifacts", icon: "◇", label: "Artifacts" },
     { id: "provenance", icon: "⛨", label: "Provenance" },
+    { id: "model", icon: "◫", label: "Model" },
   ],
   composerTarget: "@HERMES",
   crew: [
