@@ -14,12 +14,29 @@ import { workbench } from "@/mock/workbench";
 // styling; there are no design tokens for 3D materials, so hex is the only way
 // to express them. The token/no-hex rule governs the Tailwind layer, not this.
 
+export type ViewKind = "front" | "top" | "right" | "iso" | "fit";
+// A camera command lifted from the toolbar. `seq` changes on every click so the
+// same view re-fires (a fresh object identity re-runs the apply effect).
+export type CamCommand = { kind: ViewKind; seq: number };
+
+// Canonical view directions and up-vectors. `fit` keeps the current direction.
+const VIEW: Record<Exclude<ViewKind, "fit">, { dir: [number, number, number]; up?: [number, number, number] }> = {
+  front: { dir: [0, 0, 1] },
+  top: { dir: [0, 1, 0], up: [0, 0, -1] },
+  right: { dir: [1, 0, 0] },
+  iso: { dir: [1, 0.6, 1] },
+};
+
 // Frame the camera so the whole model fits, deriving the pull-back distance from
 // the vertical FOV rather than guessing a constant — the model fits at any extent.
+// A null `dir` keeps the current viewing direction (a Fit). The OrbitControls
+// target is always re-centred on the model, so orbit stays coherent after a view.
 function frameCamera(
   camera: THREE.PerspectiveCamera,
   controls: OrbitControls,
   object: THREE.Object3D,
+  dir?: THREE.Vector3,
+  up?: THREE.Vector3,
 ) {
   const box = new THREE.Box3().setFromObject(object);
   if (box.isEmpty()) return;
@@ -28,8 +45,9 @@ function frameCamera(
   const maxDim = Math.max(size.x, size.y, size.z);
   const fov = (camera.fov * Math.PI) / 180;
   const dist = (maxDim / 2 / Math.tan(fov / 2)) * 1.6; // 1.6 = framing margin
-  const dir = new THREE.Vector3(1, 0.6, 1).normalize();
-  camera.position.copy(center).addScaledVector(dir, dist);
+  const direction = (dir ?? camera.position.clone().sub(controls.target)).normalize();
+  camera.up.copy(up ?? new THREE.Vector3(0, 1, 0));
+  camera.position.copy(center).addScaledVector(direction, dist);
   camera.near = Math.max(dist / 100, 0.01);
   camera.far = dist * 100;
   camera.updateProjectionMatrix();
@@ -37,8 +55,11 @@ function frameCamera(
   controls.update();
 }
 
-export default function Viewport() {
+export default function Viewport({ command }: { command?: CamCommand | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const modelRef = useRef<THREE.Group | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -79,7 +100,11 @@ export default function Viewport() {
       model.add(mesh);
     }
     scene.add(model);
-    frameCamera(camera, controls, model);
+    frameCamera(camera, controls, model, new THREE.Vector3(1, 0.6, 1));
+
+    cameraRef.current = camera;
+    controlsRef.current = controls;
+    modelRef.current = model;
 
     let raf = 0;
     const animate = () => {
@@ -106,6 +131,9 @@ export default function Viewport() {
     return () => {
       if (disposed) return;
       disposed = true;
+      cameraRef.current = null;
+      controlsRef.current = null;
+      modelRef.current = null;
       cancelAnimationFrame(raf);
       ro.disconnect();
       controls.dispose();
@@ -131,6 +159,27 @@ export default function Viewport() {
       }
     };
   }, []);
+
+  // Apply a camera command from the toolbar. Re-runs on every new command object.
+  useEffect(() => {
+    if (!command) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const model = modelRef.current;
+    if (!camera || !controls || !model) return;
+    if (command.kind === "fit") {
+      frameCamera(camera, controls, model); // keep current direction
+      return;
+    }
+    const v = VIEW[command.kind];
+    frameCamera(
+      camera,
+      controls,
+      model,
+      new THREE.Vector3(...v.dir),
+      v.up ? new THREE.Vector3(...v.up) : undefined,
+    );
+  }, [command]);
 
   return (
     <div className="flex h-full flex-col">

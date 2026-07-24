@@ -5,6 +5,7 @@ import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
 import ModelToolbar from "./ModelToolbar";
 import Viewport from "./Viewport";
+import type { CamCommand, ViewKind } from "./Viewport";
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
@@ -24,6 +25,11 @@ const GLYPH: Record<Provenance, { mark: string; color: string; label: string }> 
 
 export default function ModelPane() {
   const [selected, setSelected] = useState<string | null>(null);
+  // Camera commands live here (lifted out of Viewport). Bumping seq gives each
+  // click a fresh identity so re-clicking the same view re-fires.
+  const [camCommand, setCamCommand] = useState<CamCommand | null>(null);
+  const runView = (kind: ViewKind) =>
+    setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
 
   // Distinct groups, in first-seen order. Derived inside the component (not at
   // module scope) so it recomputes once the document becomes dynamic in S3.
@@ -89,10 +95,10 @@ export default function ModelPane() {
       {/* center — toolbar strip over viewport */}
       <div className="flex flex-1 flex-col">
         <div className="border-b border-border-subtle px-5 py-3">
-          <ModelToolbar />
+          <ModelToolbar onView={runView} />
         </div>
         <div className="min-h-0 flex-1">
-          <Viewport />
+          <Viewport command={camCommand} />
         </div>
       </div>
     </div>
