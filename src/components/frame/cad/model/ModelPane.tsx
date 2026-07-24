@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
+import ModelToolbar from "./ModelToolbar";
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
@@ -84,7 +85,9 @@ export default function ModelPane() {
 
       {/* center — toolbar strip over viewport */}
       <div className="flex flex-1 flex-col">
-        <div className="border-b border-border-subtle px-5 py-3" />
+        <div className="border-b border-border-subtle px-5 py-3">
+          <ModelToolbar />
+        </div>
         <div className="flex flex-1 items-center justify-center">
           <span className="text-sm text-text-faint">viewport — S2</span>
         </div>
