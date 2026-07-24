@@ -118,4 +118,14 @@ describe("engineering-value invariant (fail-closed)", () => {
     walk({ nodes: [{ torque: 42 }] }, "rogue", violations);
     expect(violations.length).toBeGreaterThan(0);
   });
+
+  // Negative control for the GEOMETRIC branch specifically. A geometric key
+  // must hold a number; a PendingValue smuggled into sketchX must be flagged.
+  // The prior negative test only exercised the PendingValue fallback — this one
+  // proves the branch S1 added is itself fail-closed, not merely present.
+  it("flags a non-number under a geometric key (fails closed)", () => {
+    const violations: string[] = [];
+    walk({ sketchX: "<<dim>>" }, "rogue", violations);
+    expect(violations.length).toBeGreaterThan(0);
+  });
 });

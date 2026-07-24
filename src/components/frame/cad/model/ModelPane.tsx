@@ -4,6 +4,8 @@ import { useState } from "react";
 import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
 import ModelToolbar from "./ModelToolbar";
+import Viewport from "./Viewport";
+import type { CamCommand, ViewKind } from "./Viewport";
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
@@ -21,14 +23,20 @@ const GLYPH: Record<Provenance, { mark: string; color: string; label: string }> 
   overridden: { mark: "✕", color: "text-danger", label: "overridden" },
 };
 
-// Distinct groups, in first-seen order.
-const GROUPS = workbench.nodes.reduce<string[]>((acc, n) => {
-  if (!acc.includes(n.group)) acc.push(n.group);
-  return acc;
-}, []);
-
 export default function ModelPane() {
   const [selected, setSelected] = useState<string | null>(null);
+  // Camera commands live here (lifted out of Viewport). Bumping seq gives each
+  // click a fresh identity so re-clicking the same view re-fires.
+  const [camCommand, setCamCommand] = useState<CamCommand | null>(null);
+  const runView = (kind: ViewKind) =>
+    setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
+
+  // Distinct groups, in first-seen order. Derived inside the component (not at
+  // module scope) so it recomputes once the document becomes dynamic in S3.
+  const groups = workbench.nodes.reduce<string[]>((acc, n) => {
+    if (!acc.includes(n.group)) acc.push(n.group);
+    return acc;
+  }, []);
 
   return (
     <div className="flex h-full">
@@ -42,7 +50,7 @@ export default function ModelPane() {
         </header>
 
         <div className="flex-1 overflow-y-auto py-3">
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group} className="mb-4">
               <div className="px-5 pb-1 font-mono text-xs uppercase text-text-faint">{group}</div>
               {workbench.nodes
@@ -55,9 +63,10 @@ export default function ModelPane() {
                       key={n.nodeId}
                       type="button"
                       title={n.citation ?? undefined}
+                      aria-pressed={active}
                       onClick={() => setSelected(n.nodeId)}
-                      className={`flex w-full items-center gap-4 px-5 py-3 text-left ${
-                        active ? "border-l-2 border-accent bg-surface-overlay" : ""
+                      className={`flex w-full items-center gap-4 border-l-2 px-5 py-3 text-left ${
+                        active ? "border-accent bg-surface-overlay" : "border-transparent"
                       }`}
                     >
                       <span className={`${g.color} text-xs`}>{g.mark}</span>
@@ -86,10 +95,10 @@ export default function ModelPane() {
       {/* center — toolbar strip over viewport */}
       <div className="flex flex-1 flex-col">
         <div className="border-b border-border-subtle px-5 py-3">
-          <ModelToolbar />
+          <ModelToolbar onView={runView} />
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <span className="text-sm text-text-faint">viewport — S2</span>
+        <div className="min-h-0 flex-1">
+          <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
         </div>
       </div>
     </div>
