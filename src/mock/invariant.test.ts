@@ -3,6 +3,7 @@ import { jobs } from "./fixtures";
 import { missions } from "./missions";
 import { RUN_TIMELINE } from "./timeline";
 import { verticals } from "../shell/verticals";
+import { workbench } from "./workbench";
 import type { PendingValue } from "./types";
 
 const PENDING: readonly string[] = ["<<dim>>", "<<tol - pending>>", "<<check - pending>>"];
@@ -20,6 +21,14 @@ const OPERATIONAL_KEYS = new Set([
   // Timeline script (S5) — cycle already above.
   "atSec",
 ]);
+
+// Geometric keys — real numbers, but a DISTINCT category from operational.
+// Geometry (sketch coordinates, kernel/user-authored positions) is design
+// INPUT, not a solver-produced engineering result — the same category as a
+// duty value, which is why it is a real number and not a PendingValue. Keeping
+// it separate from OPERATIONAL_KEYS keeps the boundary legible: operational =
+// run bookkeeping (cost, cycles, timestamps), geometric = authored geometry.
+const GEOMETRIC_KEYS = new Set(["sketchX", "sketchY"]);
 
 // String-enum maps: agentStates is agent-code → run-state. The keys are
 // dynamic (the roster), so it is classified here as a whole rather than
@@ -39,6 +48,8 @@ const STRUCTURAL_KEYS = new Set([
   // Mission layer (S4b) — cost/elapsed/runCount are already operational,
   // blockingConstraint already structural.
   "vertical", "clientRef", "workspaceRef", "client",
+  // Workbench document (Lane 6 S1) — sketchX/sketchY are geometric, not here.
+  "docId", "nodeId", "group", "provenance", "citation", "nodes",
 ]);
 
 const isStructuralValue = (v: unknown) =>
@@ -68,6 +79,10 @@ function walk(node: unknown, path: string, out: string[]): void {
         if (typeof value !== "number") {
           out.push(`${here} = ${JSON.stringify(value)} (expected a number)`);
         }
+      } else if (GEOMETRIC_KEYS.has(key)) {
+        if (typeof value !== "number") {
+          out.push(`${here} = ${JSON.stringify(value)} (expected a number — geometry)`);
+        }
       } else if (STRUCTURAL_KEYS.has(key)) {
         if (!isStructuralValue(value)) {
           out.push(`${here} = ${JSON.stringify(value)} (expected a string, null, boolean, array, or object — never a number)`);
@@ -87,9 +102,20 @@ describe("engineering-value invariant (fail-closed)", () => {
     walk(verticals, "verticals", violations);
     walk(missions, "missions", violations);
     walk(RUN_TIMELINE, "timeline", violations);
+    walk(workbench, "workbench", violations);
     expect(
       violations,
       `unclassified or mistyped fields:\n${violations.join("\n")}`,
     ).toEqual([]);
+  });
+
+  // Negative control — proves the guard still fails closed. An unclassified
+  // numeric key (`torque`) is neither operational, geometric, structural, nor a
+  // PendingValue, so it MUST be flagged. If this ever passes, the allowlist has
+  // been widened into uselessness.
+  it("flags an unclassified numeric key (fails closed)", () => {
+    const violations: string[] = [];
+    walk({ nodes: [{ torque: 42 }] }, "rogue", violations);
+    expect(violations.length).toBeGreaterThan(0);
   });
 });
