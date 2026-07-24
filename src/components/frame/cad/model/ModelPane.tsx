@@ -98,7 +98,7 @@ export default function ModelPane() {
           <ModelToolbar onView={runView} />
         </div>
         <div className="min-h-0 flex-1">
-          <Viewport command={camCommand} />
+          <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
         </div>
       </div>
     </div>

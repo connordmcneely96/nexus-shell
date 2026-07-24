@@ -55,11 +55,23 @@ function frameCamera(
   controls.update();
 }
 
-export default function Viewport({ command }: { command?: CamCommand | null }) {
+export default function Viewport({
+  command,
+  selected,
+  onSelect,
+}: {
+  command?: CamCommand | null;
+  selected?: string | null;
+  onSelect?: (nodeId: string) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const modelRef = useRef<THREE.Group | null>(null);
+  // Keep the latest onSelect reachable from the pointerdown listener that is
+  // registered once at mount, without re-registering it on every render.
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -128,6 +140,21 @@ export default function Viewport({ command }: { command?: CamCommand | null }) {
     ro.observe(container);
     resize();
 
+    // Pick a mesh on pointerdown and select its tree row. Raycast against the
+    // model's meshes; the first hit carries the node id in userData.
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const onPointerDown = (e: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(model.children, false);
+      const id = hits[0]?.object.userData.nodeId;
+      if (typeof id === "string") onSelectRef.current?.(id);
+    };
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+
     return () => {
       if (disposed) return;
       disposed = true;
@@ -135,6 +162,7 @@ export default function Viewport({ command }: { command?: CamCommand | null }) {
       controlsRef.current = null;
       modelRef.current = null;
       cancelAnimationFrame(raf);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       ro.disconnect();
       controls.dispose();
       // Dispose every geometry AND every material; for each material dispose any
@@ -159,6 +187,22 @@ export default function Viewport({ command }: { command?: CamCommand | null }) {
       }
     };
   }, []);
+
+  // Reflect the selected tree node onto its mesh. The highlight is an emissive
+  // tint (a colour channel) reinforced by a subtle uniform scale (a shape
+  // channel), so the selection survives greyscale — the same rule the tree
+  // glyphs follow. This is a tint, never a base-colour swap.
+  useEffect(() => {
+    const model = modelRef.current;
+    if (!model) return;
+    for (const child of model.children) {
+      const mesh = child as THREE.Mesh;
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      const on = mesh.userData.nodeId === selected;
+      mat.emissive.set(on ? 0x3a5f8a : 0x000000);
+      mesh.scale.setScalar(on ? 1.08 : 1);
+    }
+  }, [selected]);
 
   // Apply a camera command from the toolbar. Re-runs on every new command object.
   useEffect(() => {
