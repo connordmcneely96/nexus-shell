@@ -21,14 +21,15 @@ const GLYPH: Record<Provenance, { mark: string; color: string; label: string }> 
   overridden: { mark: "✕", color: "text-danger", label: "overridden" },
 };
 
-// Distinct groups, in first-seen order.
-const GROUPS = workbench.nodes.reduce<string[]>((acc, n) => {
-  if (!acc.includes(n.group)) acc.push(n.group);
-  return acc;
-}, []);
-
 export default function ModelPane() {
   const [selected, setSelected] = useState<string | null>(null);
+
+  // Distinct groups, in first-seen order. Derived inside the component (not at
+  // module scope) so it recomputes once the document becomes dynamic in S3.
+  const groups = workbench.nodes.reduce<string[]>((acc, n) => {
+    if (!acc.includes(n.group)) acc.push(n.group);
+    return acc;
+  }, []);
 
   return (
     <div className="flex h-full">
@@ -42,7 +43,7 @@ export default function ModelPane() {
         </header>
 
         <div className="flex-1 overflow-y-auto py-3">
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group} className="mb-4">
               <div className="px-5 pb-1 font-mono text-xs uppercase text-text-faint">{group}</div>
               {workbench.nodes
@@ -55,9 +56,10 @@ export default function ModelPane() {
                       key={n.nodeId}
                       type="button"
                       title={n.citation ?? undefined}
+                      aria-pressed={active}
                       onClick={() => setSelected(n.nodeId)}
-                      className={`flex w-full items-center gap-4 px-5 py-3 text-left ${
-                        active ? "border-l-2 border-accent bg-surface-overlay" : ""
+                      className={`flex w-full items-center gap-4 border-l-2 px-5 py-3 text-left ${
+                        active ? "border-accent bg-surface-overlay" : "border-transparent"
                       }`}
                     >
                       <span className={`${g.color} text-xs`}>{g.mark}</span>
