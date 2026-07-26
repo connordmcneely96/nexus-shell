@@ -3,9 +3,21 @@
 import { useState } from "react";
 import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
+import dynamic from "next/dynamic";
 import ModelToolbar from "./ModelToolbar";
-import Viewport from "./Viewport";
 import type { CamCommand, ViewKind } from "./Viewport";
+
+// Load the viewport lazily and client-only so Three.js is not pulled into the
+// route's shared bundle — it splits into its own chunk fetched when the Model
+// tab actually mounts. (The type-only import above is erased and pulls nothing.)
+const Viewport = dynamic(() => import("./Viewport"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-text-faint">
+      loading viewport…
+    </div>
+  ),
+});
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives

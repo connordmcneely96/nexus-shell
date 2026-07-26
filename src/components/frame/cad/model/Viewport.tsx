@@ -79,11 +79,6 @@ export default function Viewport({
     const container = containerRef.current;
     if (!container) return;
 
-    // Guard unmount-during-init: if cleanup runs before setup finishes, dispose
-    // whatever exists rather than leaking it. Setup here is synchronous, but the
-    // flag keeps the invariant explicit for when async work lands later.
-    let disposed = false;
-
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -160,8 +155,6 @@ export default function Viewport({
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
     return () => {
-      if (disposed) return;
-      disposed = true;
       cameraRef.current = null;
       controlsRef.current = null;
       modelRef.current = null;
@@ -169,8 +162,10 @@ export default function Viewport({
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       ro.disconnect();
       controls.dispose();
-      // Dispose every geometry AND every material; for each material dispose any
-      // texture slot it holds. These are the three leak classes from the prior viewer.
+      // Dispose every geometry AND every material; collect texture slots into a
+      // Set so a texture shared across slots or materials is disposed exactly
+      // once. These are the three leak classes from the prior viewer.
+      const textures = new Set<THREE.Texture>();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();
@@ -179,11 +174,12 @@ export default function Viewport({
         const mats = Array.isArray(mat) ? mat : [mat];
         for (const m of mats) {
           for (const slot of Object.values(m as unknown as Record<string, unknown>)) {
-            if (slot && (slot as THREE.Texture).isTexture) (slot as THREE.Texture).dispose();
+            if (slot && (slot as THREE.Texture).isTexture) textures.add(slot as THREE.Texture);
           }
           m.dispose();
         }
       });
+      textures.forEach((t) => t.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === container) {
