@@ -3,6 +3,10 @@
 // no citation, and no grounding. Solidifying it (extrude/revolve) is a separate
 // gated creation act (S5+); that act does not make the sketch grounded either.
 // x/y/r are real geometry input (mm), the same category as a duty value.
+//
+// This is the S4a analogue of the tree's provenance rule: a sketch is the `user`
+// provenance made drawable, so the drawing surface must never imply its output is
+// checked or grounded.
 
 export type Pt = { id: string; x: number; y: number }; // mm, on the sketch plane
 
