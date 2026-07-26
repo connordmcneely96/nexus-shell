@@ -21,8 +21,7 @@ const Viewport = dynamic(() => import("./Viewport"), {
   ),
 });
 
-// Sketch state is lifted here in a later commit; the empty default seeds the
-// canvas for now.
+// Sketch state is lifted to ModelPane; the canvas is controlled via props.
 const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [] };
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
@@ -49,6 +48,7 @@ export default function ModelPane() {
   // Sketch is a MODE that swaps the 3D viewport for the 2D SVG canvas in the
   // same region; the tree rail stays. Drawing is a view state, allowed any tier.
   const [mode, setMode] = useState<"model" | "sketch">("model");
+  const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
   const runView = (kind: ViewKind) =>
     setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
 
@@ -128,7 +128,7 @@ export default function ModelPane() {
         </div>
         <div className="min-h-0 flex-1">
           {mode === "sketch" ? (
-            <SketchCanvas sketch={EMPTY_SKETCH} />
+            <SketchCanvas sketch={sketch} onSketchChange={setSketch} />
           ) : (
             <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
           )}
