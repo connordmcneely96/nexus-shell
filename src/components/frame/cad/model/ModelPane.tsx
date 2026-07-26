@@ -39,10 +39,14 @@ export default function ModelPane() {
   }, []);
 
   return (
-    <div className="flex h-full">
+    // The pane owns its own height and clips its own overflow, so a WebGL canvas
+    // inside it keeps a real height even when the host (Stage.tsx) wraps every
+    // pane in an overflow-y-auto scroll container. min-h-0 lets it shrink inside
+    // that flex parent; overflow-hidden stops content from stretching the column.
+    <div className="flex h-full min-h-0 overflow-hidden">
       {/* left — stage-local tree rail */}
       <aside
-        className="flex shrink-0 flex-col border-r border-border-subtle"
+        className="flex min-h-0 shrink-0 flex-col border-r border-border-subtle"
         style={{ width: 264 }}
       >
         <header className="border-b border-border-subtle px-5 py-3">
@@ -93,7 +97,7 @@ export default function ModelPane() {
       </aside>
 
       {/* center — toolbar strip over viewport */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-border-subtle px-5 py-3">
           <ModelToolbar onView={runView} />
         </div>
