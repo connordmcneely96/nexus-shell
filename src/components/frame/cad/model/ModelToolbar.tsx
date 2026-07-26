@@ -20,7 +20,10 @@ const VIEW: { label: string; kind: ViewKind }[] = [
   { label: "Iso", kind: "iso" },
 ];
 const INSPECT = ["Section", "Isolate", "Measure", "Compare rev"];
-const CREATE = ["Box", "Cylinder", "Sketch", "Boolean", "Fillet"];
+// "Sketch" is NOT a CREATE op — drawing is a view state allowed in any tier, so
+// it lives as its own mode toggle below. Solidifying a sketch is the gated
+// creation act and is not present yet.
+const CREATE = ["Box", "Cylinder", "Boolean", "Fillet"];
 
 // A toolbar op button. `onClick` is only supplied for live ops; inert groups
 // (INSPECT this slice) pass none, disabled groups (CREATE) pass `disabled`.
@@ -48,7 +51,15 @@ function Group({ label, ops, disabled }: { label: string; ops: string[]; disable
   );
 }
 
-export default function ModelToolbar({ onView }: { onView?: (kind: ViewKind) => void }) {
+export default function ModelToolbar({
+  onView,
+  sketchActive,
+  onToggleSketch,
+}: {
+  onView?: (kind: ViewKind) => void;
+  sketchActive?: boolean;
+  onToggleSketch?: () => void;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex items-center gap-1">
@@ -59,6 +70,17 @@ export default function ModelToolbar({ onView }: { onView?: (kind: ViewKind) => 
         <Op label="Fit" onClick={() => onView?.("fit")} />
       </div>
       <Group label="Inspect" ops={INSPECT} />
+      {/* Sketch is a MODE toggle, not a creation op — allowed in any tier. */}
+      <button
+        type="button"
+        onClick={onToggleSketch}
+        aria-pressed={sketchActive}
+        className={`rounded-full border px-3 py-1 text-xs ${
+          sketchActive ? "border-accent text-accent" : "border-border-subtle text-text-muted"
+        }`}
+      >
+        {sketchActive ? "Exit sketch" : "Sketch"}
+      </button>
       <div className="flex items-center gap-4 opacity-40">
         <Group label="Create" ops={CREATE} disabled />
         <span className="font-mono text-xs uppercase text-text-faint">
