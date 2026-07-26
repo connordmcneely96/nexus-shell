@@ -6,9 +6,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { workbench } from "@/mock/workbench";
 
 // Viewport — a Three.js render of the parametric document. The geometry is
-// built PROCEDURALLY from workbench.nodes (sketchX = position along the axis,
-// sketchY = radius); nothing is fetched, no asset is loaded, no loader is used.
-// It is a REPRESENTATION, not a dimensioned model — the caption says so.
+// built PROCEDURALLY from workbench.nodes as a solid of revolution: each node is
+// one axial section (axialStart..axialEnd, radius), and the sections are adjacent
+// end-to-end, so they read as ONE continuous stepped shaft. Nothing is fetched,
+// no asset is loaded, no loader is used. It is a REPRESENTATION, not a
+// dimensioned model — the caption says so.
 //
 // The scene-colour hex literals below are WebGL material/helper colours, not UI
 // styling; there are no design tokens for 3D materials, so hex is the only way
@@ -98,16 +100,18 @@ export default function Viewport({
     key.position.set(1, 1, 1);
     scene.add(key);
 
-    // Procedural document geometry — one cylinder per node, laid along X. Each
-    // mesh owns its material so selection (S4) and teardown stay per-mesh.
+    // Procedural stepped-shaft geometry — one cylinder per axial section, sized
+    // from the section's radius and length (axialEnd - axialStart) and centred at
+    // its midpoint along X. Adjacent sections abut, forming one continuous shaft.
+    // Each mesh owns its material so selection and teardown stay per-mesh.
     const model = new THREE.Group();
     for (const node of workbench.nodes) {
-      const radius = Math.max(node.sketchY, 2); // clamp so zero-radius nodes stay visible
-      const geom = new THREE.CylinderGeometry(radius, radius, 16, 24);
+      const length = node.axialEnd - node.axialStart;
+      const geom = new THREE.CylinderGeometry(node.radius, node.radius, length, 32);
       const material = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, metalness: 0.1, roughness: 0.7 });
       const mesh = new THREE.Mesh(geom, material);
       mesh.rotation.z = Math.PI / 2; // default Y-up cylinder -> lie along X
-      mesh.position.x = node.sketchX;
+      mesh.position.x = (node.axialStart + node.axialEnd) / 2;
       mesh.userData.nodeId = node.nodeId;
       model.add(mesh);
     }
