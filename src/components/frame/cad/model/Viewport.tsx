@@ -6,9 +6,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { workbench } from "@/mock/workbench";
 
 // Viewport — a Three.js render of the parametric document. The geometry is
-// built PROCEDURALLY from workbench.nodes (sketchX = position along the axis,
-// sketchY = radius); nothing is fetched, no asset is loaded, no loader is used.
-// It is a REPRESENTATION, not a dimensioned model — the caption says so.
+// built PROCEDURALLY from workbench.nodes as a solid of revolution: each node is
+// one axial section (axialStart..axialEnd, radius), and the sections are adjacent
+// end-to-end, so they read as ONE continuous stepped shaft. Nothing is fetched,
+// no asset is loaded, no loader is used. It is a REPRESENTATION, not a
+// dimensioned model — the caption says so.
 //
 // The scene-colour hex literals below are WebGL material/helper colours, not UI
 // styling; there are no design tokens for 3D materials, so hex is the only way
@@ -77,11 +79,6 @@ export default function Viewport({
     const container = containerRef.current;
     if (!container) return;
 
-    // Guard unmount-during-init: if cleanup runs before setup finishes, dispose
-    // whatever exists rather than leaking it. Setup here is synchronous, but the
-    // flag keeps the invariant explicit for when async work lands later.
-    let disposed = false;
-
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -98,16 +95,18 @@ export default function Viewport({
     key.position.set(1, 1, 1);
     scene.add(key);
 
-    // Procedural document geometry — one cylinder per node, laid along X. Each
-    // mesh owns its material so selection (S4) and teardown stay per-mesh.
+    // Procedural stepped-shaft geometry — one cylinder per axial section, sized
+    // from the section's radius and length (axialEnd - axialStart) and centred at
+    // its midpoint along X. Adjacent sections abut, forming one continuous shaft.
+    // Each mesh owns its material so selection and teardown stay per-mesh.
     const model = new THREE.Group();
     for (const node of workbench.nodes) {
-      const radius = Math.max(node.sketchY, 2); // clamp so zero-radius nodes stay visible
-      const geom = new THREE.CylinderGeometry(radius, radius, 16, 24);
+      const length = node.axialEnd - node.axialStart;
+      const geom = new THREE.CylinderGeometry(node.radius, node.radius, length, 32);
       const material = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, metalness: 0.1, roughness: 0.7 });
       const mesh = new THREE.Mesh(geom, material);
       mesh.rotation.z = Math.PI / 2; // default Y-up cylinder -> lie along X
-      mesh.position.x = node.sketchX;
+      mesh.position.x = (node.axialStart + node.axialEnd) / 2;
       mesh.userData.nodeId = node.nodeId;
       model.add(mesh);
     }
@@ -156,8 +155,6 @@ export default function Viewport({
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
     return () => {
-      if (disposed) return;
-      disposed = true;
       cameraRef.current = null;
       controlsRef.current = null;
       modelRef.current = null;
@@ -165,8 +162,10 @@ export default function Viewport({
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       ro.disconnect();
       controls.dispose();
-      // Dispose every geometry AND every material; for each material dispose any
-      // texture slot it holds. These are the three leak classes from the prior viewer.
+      // Dispose every geometry AND every material; collect texture slots into a
+      // Set so a texture shared across slots or materials is disposed exactly
+      // once. These are the three leak classes from the prior viewer.
+      const textures = new Set<THREE.Texture>();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();
@@ -175,11 +174,12 @@ export default function Viewport({
         const mats = Array.isArray(mat) ? mat : [mat];
         for (const m of mats) {
           for (const slot of Object.values(m as unknown as Record<string, unknown>)) {
-            if (slot && (slot as THREE.Texture).isTexture) (slot as THREE.Texture).dispose();
+            if (slot && (slot as THREE.Texture).isTexture) textures.add(slot as THREE.Texture);
           }
           m.dispose();
         }
       });
+      textures.forEach((t) => t.dispose());
       renderer.dispose();
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === container) {

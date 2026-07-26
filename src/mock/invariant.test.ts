@@ -28,7 +28,7 @@ const OPERATIONAL_KEYS = new Set([
 // duty value, which is why it is a real number and not a PendingValue. Keeping
 // it separate from OPERATIONAL_KEYS keeps the boundary legible: operational =
 // run bookkeeping (cost, cycles, timestamps), geometric = authored geometry.
-const GEOMETRIC_KEYS = new Set(["sketchX", "sketchY"]);
+const GEOMETRIC_KEYS = new Set(["sketchX", "sketchY", "axialStart", "axialEnd", "radius"]);
 
 // String-enum maps: agentStates is agent-code → run-state. The keys are
 // dynamic (the roster), so it is classified here as a whole rather than
@@ -126,6 +126,16 @@ describe("engineering-value invariant (fail-closed)", () => {
   it("flags a non-number under a geometric key (fails closed)", () => {
     const violations: string[] = [];
     walk({ sketchX: "<<dim>>" }, "rogue", violations);
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  // Negative control for the STRUCTURAL branch. A structural key (a label, id,
+  // flag, or container) must never hold a number; a number smuggled into `label`
+  // must be flagged. With the unclassified-fallback and geometric controls above,
+  // this completes the fail-closed proof across every classification branch.
+  it("flags a number under a structural key (fails closed)", () => {
+    const violations: string[] = [];
+    walk({ label: 42 }, "rogue", violations);
     expect(violations.length).toBeGreaterThan(0);
   });
 });

@@ -3,9 +3,21 @@
 import { useState } from "react";
 import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
+import dynamic from "next/dynamic";
 import ModelToolbar from "./ModelToolbar";
-import Viewport from "./Viewport";
 import type { CamCommand, ViewKind } from "./Viewport";
+
+// Load the viewport lazily and client-only so Three.js is not pulled into the
+// route's shared bundle — it splits into its own chunk fetched when the Model
+// tab actually mounts. (The type-only import above is erased and pulls nothing.)
+const Viewport = dynamic(() => import("./Viewport"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-text-faint">
+      loading viewport…
+    </div>
+  ),
+});
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
@@ -39,10 +51,14 @@ export default function ModelPane() {
   }, []);
 
   return (
-    <div className="flex h-full">
+    // The pane owns its own height and clips its own overflow, so a WebGL canvas
+    // inside it keeps a real height even when the host (Stage.tsx) wraps every
+    // pane in an overflow-y-auto scroll container. min-h-0 lets it shrink inside
+    // that flex parent; overflow-hidden stops content from stretching the column.
+    <div className="flex h-full min-h-0 overflow-hidden">
       {/* left — stage-local tree rail */}
       <aside
-        className="flex shrink-0 flex-col border-r border-border-subtle"
+        className="flex min-h-0 shrink-0 flex-col border-r border-border-subtle"
         style={{ width: 264 }}
       >
         <header className="border-b border-border-subtle px-5 py-3">
@@ -93,7 +109,7 @@ export default function ModelPane() {
       </aside>
 
       {/* center — toolbar strip over viewport */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-border-subtle px-5 py-3">
           <ModelToolbar onView={runView} />
         </div>
