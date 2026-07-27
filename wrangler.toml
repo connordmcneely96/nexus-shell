@@ -4,5 +4,14 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
+# READ-ONLY. nexus-shell's first data binding: the CAD vertical reads live
+# cad_convergence_runs + artifact_registry from ll-cockpit-db. No write path,
+# no queue, no service binding. Artifacts are fetched via a proxied R2 URL
+# (see cadAdapter), so no R2 binding is added — the surface stays minimal.
+[[d1_databases]]
+binding = "DB"
+database_name = "ll-cockpit-db"
+database_id = "831eeccf-60bc-4378-8a3b-71dfb910756e"
+
 [observability]
 enabled = true
