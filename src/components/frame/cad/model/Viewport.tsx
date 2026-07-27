@@ -253,6 +253,18 @@ export default function Viewport({
     );
   }, [command]);
 
+  // Honest empty state: gated on ACTUAL emptiness (zero geometry nodes), never on
+  // render failure — a blank canvas with data present is a bug (commit 1), not an
+  // empty state, and must never be masked as "nothing to show". The fixture is
+  // the source this slice, so read its length directly.
+  if (workbench.nodes.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-text-faint">
+        No model yet — awaiting a converged run.
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div ref={containerRef} className="min-h-0 flex-1" />
