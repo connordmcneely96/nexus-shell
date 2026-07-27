@@ -43,11 +43,25 @@ export default function CadPanes({
     case "checks":
       return <ChecksPane design={record?.design ?? null} />;
     case "artifacts":
-      return <ArtifactsPane />;
+      return <ArtifactsPane artifacts={record?.artifacts ?? []} />;
     case "provenance":
       return <ProvenancePane />;
-    case "model":
-      return <ModelPane />;
+    case "model": {
+      // Empty-state contract (Lane 5) — Lane 6 owns the viewport. When no glb
+      // artifact exists, surface an honest notice, never a blank void.
+      const hasGlb = record?.artifacts.some((a) => a.format === "glb") ?? false;
+      if (hasGlb) return <ModelPane />;
+      return (
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="shrink-0 border-b border-border-strong bg-surface-overlay px-5 py-3 text-sm text-text-muted">
+            No 3D model yet — the geometry step (Lane 4) has not produced a GLB for this run.
+          </div>
+          <div className="min-h-0 flex-1">
+            <ModelPane />
+          </div>
+        </div>
+      );
+    }
     default:
       return (
         <div className="flex h-full items-center justify-center text-sm text-text-faint">
