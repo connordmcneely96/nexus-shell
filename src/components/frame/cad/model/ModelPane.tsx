@@ -5,6 +5,8 @@ import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
 import dynamic from "next/dynamic";
 import ModelToolbar from "./ModelToolbar";
+import SketchCanvas from "./SketchCanvas";
+import type { Sketch } from "./sketch/types";
 import type { CamCommand, ViewKind } from "./Viewport";
 
 // Load the viewport lazily and client-only so Three.js is not pulled into the
@@ -18,6 +20,9 @@ const Viewport = dynamic(() => import("./Viewport"), {
     </div>
   ),
 });
+
+// Sketch is a MODE, not a CREATE op; the canvas is controlled from here.
+const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [] };
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
@@ -40,6 +45,11 @@ export default function ModelPane() {
   // Camera commands live here (lifted out of Viewport). Bumping seq gives each
   // click a fresh identity so re-clicking the same view re-fires.
   const [camCommand, setCamCommand] = useState<CamCommand | null>(null);
+  // Sketch is a MODE that swaps the 3D viewport for the 2D SVG canvas in the same
+  // region; the tree rail stays. Drawing is a view state, allowed in any tier.
+  const [mode, setMode] = useState<"model" | "sketch">("model");
+  const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
+  const [selectedPt, setSelectedPt] = useState<string | null>(null);
   const runView = (kind: ViewKind) =>
     setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
 
@@ -111,10 +121,23 @@ export default function ModelPane() {
       {/* center — toolbar strip over viewport */}
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-border-subtle px-5 py-3">
-          <ModelToolbar onView={runView} />
+          <ModelToolbar
+            onView={runView}
+            sketching={mode === "sketch"}
+            onToggleSketch={() => setMode((m) => (m === "sketch" ? "model" : "sketch"))}
+          />
         </div>
         <div className="min-h-0 flex-1">
-          <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
+          {mode === "sketch" ? (
+            <SketchCanvas
+              sketch={sketch}
+              onSketchChange={setSketch}
+              selectedPt={selectedPt}
+              onSelectPt={setSelectedPt}
+            />
+          ) : (
+            <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
+          )}
         </div>
       </div>
     </div>
