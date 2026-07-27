@@ -1,17 +1,35 @@
-import type { VerticalStage } from "@/shell/contract";
+import type { BadgeState, VerticalStage } from "@/shell/contract";
 import StatusChip from "@/components/gadgets/StatusChip";
 
-// Stage head — crumb, five-state chip (via StatusChip), Share ghost, primary
-// action. The provisional banner renders ABOVE the head with no close
-// affordance.
+// Stage head — crumb, badge chip (via StatusChip), Share ghost, primary action.
+// Two persistent, undismissable notices render ABOVE the head: the amber
+// provisional-pack banner, and (distinct) the neutral accuracy notice shown
+// whenever a persisted engineering value is rendered — the shell never asserts
+// a pipeline value is correct.
 
-export default function StageHead({ stage }: { stage: VerticalStage }) {
+const ACCURACY_NOTICE =
+  "Values shown as computed by the pipeline — NOT independently verified. Accuracy review pending.";
+
+export default function StageHead({
+  stage,
+  badge,
+  accuracyNotice,
+}: {
+  stage: VerticalStage;
+  badge?: BadgeState;
+  accuracyNotice?: boolean;
+}) {
   const { primaryAction } = stage;
   return (
     <div className="shrink-0">
       {stage.provisionalBanner && (
         <div className="w-full border-b border-warn bg-surface-raised px-4 py-2 text-sm text-warn">
           {stage.provisionalBanner}
+        </div>
+      )}
+      {accuracyNotice && (
+        <div className="w-full border-b border-border-strong bg-surface-overlay px-4 py-2 text-sm text-text-muted">
+          {ACCURACY_NOTICE}
         </div>
       )}
       <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
@@ -24,7 +42,11 @@ export default function StageHead({ stage }: { stage: VerticalStage }) {
           ))}
         </nav>
         <span className="shrink-0">
-          <StatusChip state={stage.status} detail={stage.statusDetail} pulse={stage.status === "running"} />
+          <StatusChip
+            state={badge ?? stage.status}
+            detail={stage.statusDetail}
+            pulse={(badge ?? stage.status) === "running"}
+          />
         </span>
         <button
           type="button"

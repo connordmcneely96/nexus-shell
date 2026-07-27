@@ -152,6 +152,16 @@ export function buildRecord(row: RawRunRow, artifactRows: RawArtifactRow[]): Run
   };
 }
 
+// Provisional when any assumption's impact/basis mentions a provisional pack
+// section (fatiguePackStatus/bearingPackStatus carry 'provisional'). Drives the
+// existing provisional-pack banner off live data instead of a static flag.
+export function isProvisional(design: ParsedDesign | null): boolean {
+  if (!design) return false;
+  return design.assumptions.some(
+    (a) => /provisional/i.test(a.impact) || /provisional/i.test(a.basis),
+  );
+}
+
 // The live read. Gated by construction: the caller passes env.DB, which only
 // exists at runtime with the binding. Selecting design_status is deliberate —
 // the live CadRunClient bug is that it omits it.

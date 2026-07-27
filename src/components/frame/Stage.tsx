@@ -6,6 +6,9 @@ import { verticals } from "@/shell/verticals";
 import { missions, type Mission } from "@/mock/missions";
 import { useRunClock } from "@/shell/useRunClock";
 import { shellLayout, useShellLayout, useIsNarrow } from "@/shell/useShellLayout";
+import { loadCadRun } from "@/shell/cadRun";
+import { isProvisional } from "@/shell/cadAdapter";
+import { projectBadge } from "@/shell/projectBadge";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
 import Composer from "./Composer";
@@ -109,6 +112,23 @@ export default function Stage() {
 
   const isModel = stage.id === "cad" && mode.id === "model";
 
+  // ── CAD live read ──────────────────────────────────────────────────────
+  // The CAD STAGE now reads the live run record (via the adapter's fixture
+  // path in dev). The badge is the shipped §3 projection; the two undismissable
+  // notices are data-driven. (The CAD mission LIST stays mock — rewiring it to
+  // real runs is out of scope this sprint.)
+  const cadRecord = view === "mission" && stage.id === "cad" ? loadCadRun() : null;
+  const cadBadge = cadRecord
+    ? projectBadge(cadRecord.run.status, cadRecord.run.designStatus)
+    : undefined;
+  const showProvisional = !!cadRecord && isProvisional(cadRecord.design);
+  const showAccuracy = !!cadRecord && cadRecord.design !== null;
+  // Provisional banner is now data-driven: keep the locked wording, but only
+  // when the live design actually carries provisional pack sections.
+  const cadHeadStage = cadRecord
+    ? { ...headStage, provisionalBanner: showProvisional ? headStage.provisionalBanner : undefined }
+    : headStage;
+
   return (
     <>
       <Group orientation="horizontal" className="h-full min-h-0">
@@ -118,7 +138,7 @@ export default function Stage() {
               <MissionList missions={missions} onSelect={selectMission} />
             ) : (
               <>
-                <StageHead stage={headStage} />
+                <StageHead stage={cadHeadStage} badge={cadBadge} accuracyNotice={showAccuracy} />
                 <div className="flex items-center gap-1 border-b border-border-subtle px-4 py-2">
                   {stage.modes.map((m) => (
                     <button
