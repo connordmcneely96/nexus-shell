@@ -128,7 +128,7 @@ export default function ModelPane() {
         </div>
         <div className="min-h-0 flex-1">
           {mode === "sketch" ? (
-            <SketchCanvas sketch={sketch} />
+            <SketchCanvas sketch={sketch} onSketchChange={setSketch} />
           ) : (
             <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
           )}
