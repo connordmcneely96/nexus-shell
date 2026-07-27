@@ -49,6 +49,7 @@ export default function ModelPane() {
   // region; the tree rail stays. Drawing is a view state, allowed in any tier.
   const [mode, setMode] = useState<"model" | "sketch">("model");
   const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
+  const [selectedPt, setSelectedPt] = useState<string | null>(null);
   const runView = (kind: ViewKind) =>
     setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
 
@@ -128,7 +129,12 @@ export default function ModelPane() {
         </div>
         <div className="min-h-0 flex-1">
           {mode === "sketch" ? (
-            <SketchCanvas sketch={sketch} onSketchChange={setSketch} />
+            <SketchCanvas
+              sketch={sketch}
+              onSketchChange={setSketch}
+              selectedPt={selectedPt}
+              onSelectPt={setSelectedPt}
+            />
           ) : (
             <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
           )}

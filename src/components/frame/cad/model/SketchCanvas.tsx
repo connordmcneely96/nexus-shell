@@ -30,16 +30,34 @@ function ptById(sketch: Sketch, id: string): Pt | undefined {
   return sketch.pts.find((p) => p.id === id);
 }
 
+// Does a segment reference this point id? (Covers every seg kind.)
+function segRefsPt(seg: Seg, id: string): boolean {
+  if (seg.kind === "line") return seg.a === id || seg.b === id;
+  if (seg.kind === "circle") return seg.c === id;
+  return seg.c === id || seg.a === id || seg.b === id; // arc
+}
+
 export default function SketchCanvas({
   sketch,
   onSketchChange,
+  selectedPt,
+  onSelectPt,
 }: {
   sketch: Sketch;
   onSketchChange: (s: Sketch) => void;
+  selectedPt: string | null;
+  onSelectPt: (id: string | null) => void;
 }) {
   const gRef = useRef<SVGGElement>(null);
   const [chain, setChain] = useState<string[]>([]); // pt ids of the active polyline
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null); // snapped, sketch coords
+
+  // Refs so the single keydown listener reads live state without re-registering.
+  const sketchRef = useRef(sketch);
+  sketchRef.current = sketch;
+  const selRef = useRef(selectedPt);
+  selRef.current = selectedPt;
+  const draggingRef = useRef<string | null>(null);
 
   // Stable id counter, seeded from the existing sketch so a remount does not
   // collide with persisted ids.
@@ -52,22 +70,40 @@ export default function SketchCanvas({
   }
   const gid = (prefix: string) => `${prefix}${idRef.current!++}`;
 
-  // Escape ends the current chain (points already placed remain).
+  // Escape ends the current chain; Delete/Backspace removes the selected point
+  // and every segment referencing it. Reads refs so it registers once.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setChain([]);
+      if (e.key === "Escape") {
+        setChain([]);
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && selRef.current && !draggingRef.current) {
+        e.preventDefault();
+        const id = selRef.current;
+        const s = sketchRef.current;
+        onSketchChange({
+          ...s,
+          pts: s.pts.filter((p) => p.id !== id),
+          segs: s.segs.filter((seg) => !segRefsPt(seg, id)),
+        });
+        onSelectPt(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [onSketchChange, onSelectPt]);
 
-  // Screen -> sketch coords via the flipped group's CTM (the y-flip is included),
-  // then snapped to the placement grid.
-  const toSnapped = (clientX: number, clientY: number): { x: number; y: number } | null => {
+  // Screen -> sketch coords via the flipped group's CTM (the y-flip is included).
+  const toRaw = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const ctm = gRef.current?.getScreenCTM();
     if (!ctm) return null;
     const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
-    return { x: snap(p.x), y: snap(p.y) };
+    return { x: p.x, y: p.y };
+  };
+  const toSnapped = (clientX: number, clientY: number) => {
+    const p = toRaw(clientX, clientY);
+    return p ? { x: snap(p.x), y: snap(p.y) } : null;
   };
 
   const firstChainPt = chain.length ? ptById(sketch, chain[0]) : undefined;
@@ -76,13 +112,32 @@ export default function SketchCanvas({
     chain.length >= 2 && !!cursor && !!firstChainPt && dist(cursor, firstChainPt) <= CLOSE_TOL;
 
   const handleMove = (e: ReactPointerEvent) => {
+    // Dragging a point: move it freely (snap happens on release).
+    if (draggingRef.current) {
+      const raw = toRaw(e.clientX, e.clientY);
+      if (!raw) return;
+      const id = draggingRef.current;
+      const s = sketchRef.current;
+      onSketchChange({ ...s, pts: s.pts.map((p) => (p.id === id ? { ...p, x: raw.x, y: raw.y } : p)) });
+      return;
+    }
     const p = toSnapped(e.clientX, e.clientY);
     if (p) setCursor(p);
   };
 
+  const handleUp = () => {
+    const id = draggingRef.current;
+    if (!id) return;
+    draggingRef.current = null;
+    const s = sketchRef.current;
+    onSketchChange({
+      ...s,
+      pts: s.pts.map((p) => (p.id === id ? { ...p, x: snap(p.x), y: snap(p.y) } : p)),
+    });
+  };
+
   const handleClick = (e: ReactMouseEvent) => {
-    // The second click of a double-click (detail === 2) ends the chain; the first
-    // click already placed its point.
+    // The second click of a double-click (detail === 2) ends the chain.
     if (e.detail >= 2) {
       setChain([]);
       return;
@@ -98,7 +153,9 @@ export default function SketchCanvas({
       return;
     }
 
-    // Otherwise place a new point and, if extending a chain, a line to it.
+    // Otherwise place a new point (starting or extending a chain). Placing clears
+    // any point selection — we are drawing, not editing.
+    onSelectPt(null);
     const pt: Pt = { id: gid("p"), x: p.x, y: p.y };
     const segs: Seg[] = chain.length
       ? [...sketch.segs, { id: gid("s"), kind: "line", a: chain[chain.length - 1], b: pt.id }]
@@ -107,6 +164,30 @@ export default function SketchCanvas({
     setChain([...chain, pt.id]);
   };
 
+  // Select + begin dragging a point. Only when NOT mid-chain — while drawing,
+  // points must stay transparent to the svg handler (so a click near the first
+  // point can close the loop).
+  const onPtDown = (e: ReactPointerEvent, id: string) => {
+    if (chain.length) return;
+    e.stopPropagation();
+    onSelectPt(id);
+    draggingRef.current = id;
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  };
+  // Swallow the click that follows a point interaction so the svg does not also
+  // place a new point on top of it.
+  const onPtClick = (e: ReactMouseEvent) => {
+    if (chain.length) return;
+    e.stopPropagation();
+  };
+
+  const clearSketch = () => {
+    onSketchChange({ ...sketch, pts: [], segs: [] });
+    setChain([]);
+    onSelectPt(null);
+  };
+
+  const selPt = selectedPt ? ptById(sketch, selectedPt) : undefined;
   const closed = sketch.pts.length >= 3 && sketch.segs.length >= sketch.pts.length;
   const status = chain.length ? "drawing…" : closed ? "closed profile" : "open";
 
@@ -118,6 +199,7 @@ export default function SketchCanvas({
           viewBox={`${-EXTENT} ${-EXTENT} ${EXTENT * 2} ${EXTENT * 2}`}
           preserveAspectRatio="xMidYMid meet"
           onPointerMove={handleMove}
+          onPointerUp={handleUp}
           onPointerLeave={() => setCursor(null)}
           onClick={handleClick}
         >
@@ -167,15 +249,37 @@ export default function SketchCanvas({
               />
             )}
 
-            {/* points */}
+            {/* selection ring */}
+            {selPt && (
+              <circle
+                className="text-accent"
+                cx={selPt.x}
+                cy={selPt.y}
+                r={5}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+
+            {/* points — interactive for select/drag when not mid-chain */}
             <g className="text-accent" fill="currentColor">
               {sketch.pts.map((p) => (
-                <circle key={p.id} cx={p.x} cy={p.y} r={2.5} />
+                <circle
+                  key={p.id}
+                  cx={p.x}
+                  cy={p.y}
+                  r={2.5}
+                  style={{ cursor: chain.length ? "crosshair" : "pointer" }}
+                  onPointerDown={(e) => onPtDown(e, p.id)}
+                  onClick={onPtClick}
+                />
               ))}
             </g>
 
             {/* snap marker / close highlight */}
-            {cursor && (
+            {cursor && !draggingRef.current && (
               <circle
                 className={canClose ? "text-success" : "text-text-muted"}
                 cx={canClose && firstChainPt ? firstChainPt.x : cursor.x}
@@ -190,11 +294,20 @@ export default function SketchCanvas({
           </g>
         </svg>
       </div>
-      <div className="flex items-center justify-between border-t border-border-subtle px-5 py-3 text-sm text-text-faint">
+      <div className="flex items-center justify-between gap-4 border-t border-border-subtle px-5 py-3 text-sm text-text-faint">
         <span>Sketch plane {sketch.plane} — 2D draft, not constrained.</span>
-        <span className="font-mono text-xs">
-          {sketch.pts.length} pts · {sketch.segs.length} segs · {status}
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-xs">
+            {sketch.pts.length} pts · {sketch.segs.length} segs · {status}
+          </span>
+          <button
+            type="button"
+            onClick={clearSketch}
+            className="rounded-full border border-border-subtle px-3 py-1 text-xs text-text-muted"
+          >
+            Clear sketch
+          </button>
+        </div>
       </div>
     </div>
   );
