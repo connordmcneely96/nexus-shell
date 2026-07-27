@@ -84,6 +84,11 @@ export default function Viewport({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
+    // Fill the container defensively so the canvas cannot collapse to the
+    // 300x150 default before the first setSize lands.
+    renderer.domElement.style.display = "block";
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -126,18 +131,40 @@ export default function Viewport({
     animate();
 
     // Resize from the container, not the window — the pane can change size
-    // without the window doing so.
-    const resize = () => {
+    // without the window doing so. Returns true once a valid (non-zero) size has
+    // been applied. The FIRST valid measurement reframes the camera against the
+    // real aspect (the mount-time frameCamera ran against aspect 1); later
+    // resizes only resize the buffer and update aspect, so they never fight the
+    // user's orbit.
+    let sizedOnce = false;
+    const resize = (): boolean => {
       const w = container.clientWidth;
       const h = container.clientHeight;
-      if (w === 0 || h === 0) return;
-      renderer.setSize(w, h, false);
+      if (w === 0 || h === 0) return false;
+      renderer.setSize(w, h); // updateStyle=true (default): canvas gets an explicit CSS size
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      if (!sizedOnce) {
+        sizedOnce = true;
+        frameCamera(camera, controls, model, new THREE.Vector3(1, 0.6, 1));
+      }
+      return true;
     };
-    const ro = new ResizeObserver(resize);
+    const ro = new ResizeObserver(() => resize());
     ro.observe(container);
-    resize();
+    // Kick an immediate measure. If the layout has not settled (0-sized), retry
+    // on a bounded rAF loop until the first valid size lands, then stop — some
+    // flex/panel layouts settle a frame or two after mount and the observer's
+    // first delivery is not useful. Bounded (~30 frames), never a forever-poll.
+    let retryRaf = 0;
+    if (!resize()) {
+      let tries = 0;
+      const tick = () => {
+        if (resize() || tries++ > 30) return;
+        retryRaf = requestAnimationFrame(tick);
+      };
+      retryRaf = requestAnimationFrame(tick);
+    }
 
     // Pick a mesh on pointerdown and select its tree row. Raycast against the
     // model's meshes; the first hit carries the node id in userData.
@@ -159,6 +186,7 @@ export default function Viewport({
       controlsRef.current = null;
       modelRef.current = null;
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(retryRaf); // stop the bounded size-retry loop if still pending
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       ro.disconnect();
       controls.dispose();
@@ -224,6 +252,18 @@ export default function Viewport({
       v.up ? new THREE.Vector3(...v.up) : undefined,
     );
   }, [command]);
+
+  // Honest empty state: gated on ACTUAL emptiness (zero geometry nodes), never on
+  // render failure — a blank canvas with data present is a bug (commit 1), not an
+  // empty state, and must never be masked as "nothing to show". The fixture is
+  // the source this slice, so read its length directly.
+  if (workbench.nodes.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-text-faint">
+        No model yet — awaiting a converged run.
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
