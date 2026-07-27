@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 // UI-only state; never enters invariant-walked data; no localStorage
 // (forbidden here — artifacts/OpenNext). "Remembered across renders" means
@@ -48,4 +48,21 @@ export const shellLayout = {
 
 export function useShellLayout(): ShellLayout {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+// Below this width the side panels default collapsed and the resize handles
+// hide (stage full-bleed). The parked mobile sprint degrades the panels to
+// drawers below this same breakpoint — this constant is the shared seam.
+export const NARROW_BREAKPOINT_PX = 820;
+
+export function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${NARROW_BREAKPOINT_PX - 1}px)`);
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return narrow;
 }

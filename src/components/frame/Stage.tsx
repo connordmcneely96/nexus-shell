@@ -5,7 +5,7 @@ import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { verticals } from "@/shell/verticals";
 import { missions, type Mission } from "@/mock/missions";
 import { useRunClock } from "@/shell/useRunClock";
-import { shellLayout, useShellLayout } from "@/shell/useShellLayout";
+import { shellLayout, useShellLayout, useIsNarrow } from "@/shell/useShellLayout";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
 import Composer from "./Composer";
@@ -89,11 +89,13 @@ export default function Stage() {
   const headStage = isLiveRun ? { ...stage, statusDetail: `CYCLE ${run.cycle}/20` } : stage;
 
   // Per-vertical default: CAD opens Brain-collapsed (the viewport needs room),
-  // web opens it open. Applies only until the user toggles Brain this session.
+  // web opens it open. Below the breakpoint Brain also defaults collapsed. Both
+  // are DEFAULTS — a manual toggle this session overrides them.
   const { brainCollapsed } = useShellLayout();
+  const isNarrow = useIsNarrow();
   useEffect(() => {
-    shellLayout.applyBrainDefault(stage.id === "cad");
-  }, [stage.id]);
+    shellLayout.applyBrainDefault(isNarrow || stage.id === "cad");
+  }, [stage.id, isNarrow]);
 
   // store <-> Brain panel sync (mirrors the Rail wiring in ShellFrame).
   const brainRef = usePanelRef();
@@ -163,7 +165,8 @@ export default function Stage() {
             )}
           </section>
         </Panel>
-        <Separator className="w-1 bg-border-subtle hover:bg-border-strong" />
+        {/* Handle hides below the breakpoint (mobile-drawer seam); toggles still work. */}
+        {!isNarrow && <Separator className="w-1 bg-border-subtle hover:bg-border-strong" />}
         <Panel
           panelRef={brainRef}
           id="brain"

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import Rail from "./Rail";
-import { shellLayout, useShellLayout } from "@/shell/useShellLayout";
+import { shellLayout, useShellLayout, useIsNarrow } from "@/shell/useShellLayout";
 
 // Outer resizable frame: Rail | stage region. layout.tsx stays a server
 // component; this client island owns the PanelGroup. Sizes are pixels (this
@@ -14,6 +14,7 @@ const RAIL = { default: 252, min: 200, max: 360, collapsed: 56 };
 
 export default function ShellFrame({ children }: { children: React.ReactNode }) {
   const { railCollapsed } = useShellLayout();
+  const isNarrow = useIsNarrow();
   const railRef = usePanelRef();
   const lastCollapsed = useRef(railCollapsed);
 
@@ -24,6 +25,12 @@ export default function ShellFrame({ children }: { children: React.ReactNode }) 
     if (railCollapsed && !p.isCollapsed()) p.collapse();
     else if (!railCollapsed && p.isCollapsed()) p.expand();
   }, [railCollapsed, railRef]);
+
+  // Below the breakpoint the Rail defaults collapsed; the user can still
+  // toggle it open afterward (the store toggles keep working).
+  useEffect(() => {
+    if (isNarrow) shellLayout.setRailCollapsed(true);
+  }, [isNarrow]);
 
   return (
     <Group orientation="horizontal" className="min-h-0 flex-1">
@@ -47,7 +54,8 @@ export default function ShellFrame({ children }: { children: React.ReactNode }) 
       >
         <Rail />
       </Panel>
-      <Separator className="w-1 bg-border-subtle hover:bg-border-strong" />
+      {/* Handle hides below the breakpoint (mobile-drawer seam); toggles still work. */}
+      {!isNarrow && <Separator className="w-1 bg-border-subtle hover:bg-border-strong" />}
       {/* Stage region: full height, NO blanket scroll — panes own their scroll. */}
       <Panel id="stage" minSize={320} style={{ overflow: "hidden" }}>
         {children}
