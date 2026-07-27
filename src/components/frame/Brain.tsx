@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { VerticalStage } from "@/shell/contract";
 import type { RunClock } from "@/shell/useRunClock";
+import { useShellLayout } from "@/shell/useShellLayout";
 
 // System Brain — Context / Agents / Activity. Config is the t=0 baseline; the
 // run clock overlays live agent states and prepends live activity entries.
@@ -17,13 +18,16 @@ const AGENT_STATE_CLASS: Record<string, string> = {
 };
 
 export default function Brain({ stage, run }: { stage: VerticalStage; run: RunClock }) {
+  const { brainCollapsed } = useShellLayout();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Context");
   const b = stage.brain;
 
+  // The surrounding Panel collapses to zero width; skip rendering when hidden.
+  if (brainCollapsed) return null;
+
   return (
     <aside
-      className="flex shrink-0 flex-col overflow-y-auto border-l border-border-subtle bg-surface-raised"
-      style={{ width: "320px" }}
+      className="flex h-full flex-col overflow-y-auto bg-surface-raised"
     >
       <div className="border-b border-border-subtle p-4">
         <div className="text-sm text-text-primary">{b.title}</div>
