@@ -1,5 +1,6 @@
 import type { FiveState } from "@/shell/contract";
 import type { RunClock } from "@/shell/useRunClock";
+import type { RunRecord } from "@/shell/cadAdapter";
 import OverviewPane from "./OverviewPane";
 import DutyPane from "./DutyPane";
 import ChecksPane from "./ChecksPane";
@@ -16,6 +17,7 @@ export default function CadPanes({
   cycle,
   maxCycles,
   run,
+  record,
 }: {
   modeId: string;
   status: FiveState;
@@ -23,6 +25,7 @@ export default function CadPanes({
   cycle?: number;
   maxCycles?: number;
   run: RunClock;
+  record: RunRecord | null;
 }) {
   switch (modeId) {
     case "overview":
@@ -38,7 +41,7 @@ export default function CadPanes({
     case "duty":
       return <DutyPane />;
     case "checks":
-      return <ChecksPane />;
+      return <ChecksPane design={record?.design ?? null} />;
     case "artifacts":
       return <ArtifactsPane />;
     case "provenance":

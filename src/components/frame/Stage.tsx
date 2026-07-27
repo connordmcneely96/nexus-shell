@@ -173,6 +173,7 @@ export default function Stage() {
                       cycle={selected?.cycle}
                       maxCycles={selected?.maxCycles}
                       run={run}
+                      record={cadRecord}
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-text-faint">
