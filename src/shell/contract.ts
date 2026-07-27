@@ -4,6 +4,11 @@
 
 export type FiveState = 'pending' | 'running' | 'converged' | 'infeasible' | 'failed';
 
+// Badge state = the projected chip vocabulary. exhausted is a run-lifecycle
+// outcome (budget consumed, nothing proven) — distinct from failed (a fault)
+// and from infeasible (a proven engineering no). Contract v2.1, additive.
+export type BadgeState = FiveState | 'exhausted';
+
 export interface Mode {
   id: string;
   icon: string;

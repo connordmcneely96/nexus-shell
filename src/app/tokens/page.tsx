@@ -2,7 +2,7 @@
 // here, not even as illustration; filler text is the token name. Reached by
 // direct URL only; deliberately unlinked (no nav exists yet).
 
-import type { FiveState } from "@/shell/contract";
+import type { BadgeState } from "@/shell/contract";
 import StatusChip from "@/components/gadgets/StatusChip";
 
 const COLOR_CHIPS: [string, string][] = [
@@ -20,8 +20,8 @@ const SPACES = ["1", "2", "3", "4", "5", "6", "8", "10", "12", "16"];
 const RADII = ["xs", "sm", "md", "lg", "xl", "full"];
 const TYPE_SIZES = ["xs", "sm", "base", "lg", "xl", "2xl"];
 
-// The five states rendered from the single StatusChip source of truth.
-const STATUS: FiveState[] = ["pending", "running", "converged", "infeasible", "failed"];
+// The six badge states rendered from the single StatusChip source of truth.
+const STATUS: BadgeState[] = ["pending", "running", "converged", "infeasible", "failed", "exhausted"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -94,6 +94,11 @@ export default function TokensPage() {
           and answered that no design satisfies the duty. It is rendered with its own token
           (--nx-verdict), a dashed border, a diamond marker, and its own label — dashed + diamond,
           never red — a determinate answer, never the failed treatment.
+        </p>
+        <p className="mt-2 max-w-prose text-sm text-text-muted">
+          exhausted is different again: a gold triangle (--nx-warn) — budget consumed, nothing
+          proven; not a failure, not an answer. The solver ran out of cycles before either
+          converging or proving a no.
         </p>
       </Section>
     </main>
