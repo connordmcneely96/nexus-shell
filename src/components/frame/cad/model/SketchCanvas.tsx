@@ -295,7 +295,13 @@ export default function SketchCanvas({
         </svg>
       </div>
       <div className="flex items-center justify-between gap-4 border-t border-border-subtle px-5 py-3 text-sm text-text-faint">
-        <span>Sketch plane {sketch.plane} — 2D draft, not constrained.</span>
+        {/* A hand-drawn sketch is user-authored geometry — the tree's `user`
+            provenance (◆, text-accent). The surface must not imply it is checked
+            or grounded, so it says so plainly. */}
+        <span className="flex items-center gap-2">
+          <span className="text-accent">◆</span>
+          Sketch plane {sketch.plane} — user-drawn · ungrounded · 2D draft, not constrained.
+        </span>
         <div className="flex items-center gap-4">
           <span className="font-mono text-xs">
             {sketch.pts.length} pts · {sketch.segs.length} segs · {status}
