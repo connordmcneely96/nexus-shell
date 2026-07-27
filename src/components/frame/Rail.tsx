@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { RAIL_ITEMS, PRODUCTS, ACTIVE_SYSTEMS, type ProductStatus } from "@/nav/config";
+import { shellLayout, useShellLayout } from "@/shell/useShellLayout";
 
 // Rail v2 (client island — Products dropdown + vertical switching). All
 // non-Products nav items are inert this sprint; rows only fire
 // 'nexus:set-vertical' so the Stage can swap configs. Tokens only, no hex.
+// Width is owned by the surrounding resizable Panel; the Rail fills it and,
+// when collapsed, renders an icon-only strip.
 
 const setVertical = (id: string) =>
   window.dispatchEvent(new CustomEvent("nexus:set-vertical", { detail: { id } }));
+
+const showMissions = () => window.dispatchEvent(new Event("nexus:show-missions"));
 
 const STATUS_CLASS: Record<ProductStatus, string> = {
   SHIPPED: "border-success text-success",
@@ -17,14 +22,59 @@ const STATUS_CLASS: Record<ProductStatus, string> = {
   PLANNED: "border-border-strong text-text-muted",
 };
 
+// Icon glyphs for the collapsed strip (no labels). Mono, tokens only.
+const ICONS: Record<string, string> = {
+  home: "⌂", missions: "◎", projects: "▤", products: "▦", agents: "◇",
+  workflows: "↝", artifacts: "◈", codebases: "⌗", knowledge: "≡",
+};
+
+function CollapsedRail() {
+  return (
+    <nav className="flex h-full flex-col items-center gap-1 bg-surface-raised py-3">
+      <button
+        type="button"
+        onClick={shellLayout.toggleRail}
+        title="Expand rail"
+        className="flex h-9 w-9 items-center justify-center rounded-md font-mono text-text-faint hover:bg-surface-overlay hover:text-text-primary"
+      >
+        »
+      </button>
+      {RAIL_ITEMS.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          title={item.label}
+          onClick={item.id === "missions" ? showMissions : shellLayout.toggleRail}
+          className={`flex h-9 w-9 items-center justify-center rounded-md font-mono ${
+            item.id === "missions" ? "text-accent" : "text-text-muted hover:bg-surface-overlay hover:text-text-primary"
+          }`}
+        >
+          {ICONS[item.id] ?? "•"}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 export default function Rail() {
+  const { railCollapsed } = useShellLayout();
   const [productsOpen, setProductsOpen] = useState(true);
 
+  if (railCollapsed) return <CollapsedRail />;
+
   return (
-    <nav
-      className="flex shrink-0 flex-col overflow-y-auto border-r border-border-subtle bg-surface-raised p-3"
-      style={{ width: "252px" }}
-    >
+    <nav className="flex h-full flex-col overflow-y-auto bg-surface-raised p-3">
+      <div className="mb-1 flex items-center justify-between px-1">
+        <span className="text-xs tracking-wide text-text-faint">NAV</span>
+        <button
+          type="button"
+          onClick={shellLayout.toggleRail}
+          title="Collapse rail"
+          className="rounded-md px-2 font-mono text-text-faint hover:bg-surface-overlay hover:text-text-primary"
+        >
+          «
+        </button>
+      </div>
       <ul className="flex flex-col gap-1">
         {RAIL_ITEMS.map((item) =>
           item.expandable ? (
