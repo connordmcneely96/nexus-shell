@@ -42,11 +42,15 @@ export default function SketchCanvas({
   onSketchChange,
   selectedPt,
   onSelectPt,
+  overConstrained,
 }: {
   sketch: Sketch;
-  onSketchChange: (s: Sketch) => void;
+  // A `pinId` marks a transiently-dragged point so ModelPane's solve holds it
+  // fixed and lets the rest of the sketch follow the user's lead.
+  onSketchChange: (s: Sketch, pinId?: string | null) => void;
   selectedPt: string | null;
   onSelectPt: (id: string | null) => void;
+  overConstrained?: boolean;
 }) {
   const gRef = useRef<SVGGElement>(null);
   const [chain, setChain] = useState<string[]>([]); // pt ids of the active polyline
@@ -118,7 +122,8 @@ export default function SketchCanvas({
       if (!raw) return;
       const id = draggingRef.current;
       const s = sketchRef.current;
-      onSketchChange({ ...s, pts: s.pts.map((p) => (p.id === id ? { ...p, x: raw.x, y: raw.y } : p)) });
+      // Pin the dragged point so the solver follows it rather than fighting it.
+      onSketchChange({ ...s, pts: s.pts.map((p) => (p.id === id ? { ...p, x: raw.x, y: raw.y } : p)) }, id);
       return;
     }
     const p = toSnapped(e.clientX, e.clientY);
@@ -303,8 +308,13 @@ export default function SketchCanvas({
           Sketch plane {sketch.plane} — user-drawn · ungrounded · 2D draft, not constrained.
         </span>
         <div className="flex items-center gap-4">
+          {overConstrained && (
+            <span className="flex items-center gap-1 font-mono text-xs text-verdict">
+              <span>◇</span> over-constrained
+            </span>
+          )}
           <span className="font-mono text-xs">
-            {sketch.pts.length} pts · {sketch.segs.length} segs · {status}
+            {sketch.pts.length} pts · {sketch.segs.length} segs · {sketch.cons.length} cons · {status}
           </span>
           <button
             type="button"

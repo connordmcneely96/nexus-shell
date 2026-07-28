@@ -6,7 +6,8 @@ import type { WorkbenchNode } from "@/mock/workbench";
 import dynamic from "next/dynamic";
 import ModelToolbar from "./ModelToolbar";
 import SketchCanvas from "./SketchCanvas";
-import type { Sketch } from "./sketch/types";
+import { solve } from "./sketch/solver";
+import type { Sketch, Constraint } from "./sketch/types";
 import type { CamCommand, ViewKind } from "./Viewport";
 
 // Load the viewport lazily and client-only so Three.js is not pulled into the
@@ -50,6 +51,27 @@ export default function ModelPane() {
   const [mode, setMode] = useState<"model" | "sketch">("model");
   const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
   const [selectedPt, setSelectedPt] = useState<string | null>(null);
+  // Over-constrained is the sketch's infeasible: solve() returned converged=false.
+  // We keep the best-effort geometry and surface the state, never hide it.
+  const [overConstrained, setOverConstrained] = useState(false);
+
+  // Every sketch mutation runs the constraint solver when constraints exist.
+  // `pinId` (a transiently dragged point) is added as a temporary fixed so the
+  // user leads and the rest follows; it is stripped from the stored sketch.
+  const applySketch = (next: Sketch, pinId?: string | null) => {
+    if (next.cons.length === 0) {
+      setSketch(next);
+      setOverConstrained(false);
+      return;
+    }
+    const cons: Constraint[] = pinId
+      ? [...next.cons, { id: "__drag_pin__", kind: "fixed", pt: pinId }]
+      : next.cons;
+    const r = solve({ ...next, cons });
+    setSketch({ ...r.sketch, cons: next.cons }); // keep user constraints, drop the transient pin
+    setOverConstrained(!r.converged);
+  };
+
   const runView = (kind: ViewKind) =>
     setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
 
@@ -131,9 +153,10 @@ export default function ModelPane() {
           {mode === "sketch" ? (
             <SketchCanvas
               sketch={sketch}
-              onSketchChange={setSketch}
+              onSketchChange={applySketch}
               selectedPt={selectedPt}
               onSelectPt={setSelectedPt}
+              overConstrained={overConstrained}
             />
           ) : (
             <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
