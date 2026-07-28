@@ -22,7 +22,7 @@ const Viewport = dynamic(() => import("./Viewport"), {
 });
 
 // Sketch is a MODE, not a CREATE op; the canvas is controlled from here.
-const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [] };
+const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [], cons: [] };
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
