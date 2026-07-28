@@ -1,5 +1,6 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { RunStatus, DesignStatus } from "./projectBadge";
+import type { BadgeState } from "./contract";
+import { projectBadge, type RunStatus, type DesignStatus } from "./projectBadge";
 
 // The live-read adapter: cad_convergence_runs + artifact_registry, behind the
 // frozen VerticalStage contract. READ-ONLY. design_json is LIVE pipeline output
@@ -160,6 +161,78 @@ export function isProvisional(design: ParsedDesign | null): boolean {
   return design.assumptions.some(
     (a) => /provisional/i.test(a.impact) || /provisional/i.test(a.basis),
   );
+}
+
+// ── LIST read ───────────────────────────────────────────────────────────────
+// The Missions list needs status + operational fields ONLY — never engineering
+// values, so design_json is NOT read here. Each card is badged through the
+// SHIPPED projectBadge, so a list card is never greener than its detail
+// (monotone trust): converged+ungrounded/null projects to pending at list level
+// too.
+
+export interface CadMissionSummary {
+  runId: string;
+  name: string; // derived from spec (stable label)
+  status: BadgeState; // projectBadge(rawStatus, designStatus)
+  rawStatus: RunStatus;
+  designStatus: DesignStatus;
+  blockingConstraint?: string; // concise design_diagnosis when infeasible
+  cycle: number;
+  maxCycles: number;
+  createdAt: number;
+}
+
+export interface RawRunListRow {
+  run_id: string;
+  status: string;
+  design_status: string | null;
+  design_diagnosis: string | null;
+  cycle: number;
+  max_cycles: number;
+  created_at: number;
+  spec: string;
+}
+
+const deriveName = (spec: string): string =>
+  spec
+    .split(",")
+    .slice(0, 2)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(" · ") || "CAD run";
+
+const conciseDiagnosis = (d: string): string => {
+  const first = d.split(". ")[0].trim();
+  return first.length > 140 ? `${first.slice(0, 140)}…` : first;
+};
+
+// Pure mapper shared by the live read and the captured-fixture render path.
+export function mapMissionSummary(row: RawRunListRow): CadMissionSummary {
+  const rawStatus = normStatus(row.status);
+  const designStatus = normDesignStatus(row.design_status);
+  const badge = projectBadge(rawStatus, designStatus);
+  return {
+    runId: row.run_id,
+    name: deriveName(row.spec),
+    status: badge,
+    rawStatus,
+    designStatus,
+    ...(badge === "infeasible" && row.design_diagnosis
+      ? { blockingConstraint: conciseDiagnosis(row.design_diagnosis) }
+      : {}),
+    cycle: row.cycle,
+    maxCycles: row.max_cycles,
+    createdAt: row.created_at,
+  };
+}
+
+export async function cadMissionList(db: D1Database): Promise<CadMissionSummary[]> {
+  const rows = await db
+    .prepare(
+      "SELECT run_id, status, design_status, design_diagnosis, cycle, max_cycles, created_at, spec FROM cad_convergence_runs WHERE duty_json IS NOT NULL ORDER BY created_at DESC",
+    )
+    .all<RawRunListRow>();
+  return (rows.results ?? []).map(mapMissionSummary);
 }
 
 // The live read. Gated by construction: the caller passes env.DB, which only
