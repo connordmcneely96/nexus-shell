@@ -263,6 +263,20 @@ export default function SketchCanvas({
       ? "closed profile"
       : "open";
 
+  // Approximate DOF: 2 per point minus the DOF each constraint NOMINALLY removes.
+  // It is a naive count — it ignores redundancy and conflict — so it is labelled
+  // "approx", never presented as an exact solved DOF.
+  const DOF_REMOVED: Record<Constraint["kind"], number> = {
+    horizontal: 1,
+    vertical: 1,
+    coincident: 2,
+    distance: 1,
+    equal: 1,
+    fixed: 2,
+  };
+  const approxDof =
+    2 * sketch.pts.length - sketch.cons.reduce((n, c) => n + DOF_REMOVED[c.kind], 0);
+
   return (
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1">
@@ -411,14 +425,23 @@ export default function SketchCanvas({
           Sketch plane {sketch.plane} — user-drawn · ungrounded · 2D draft.
         </span>
         <div className="flex items-center gap-4">
-          {overConstrained && (
-            <span className="flex items-center gap-1 font-mono text-xs text-verdict">
-              <span>◇</span> over-constrained
-            </span>
-          )}
           <span className="font-mono text-xs">
-            {sketch.pts.length} pts · {sketch.segs.length} segs · {sketch.cons.length} cons · {status}
+            {sketch.pts.length} pts · {sketch.segs.length} segs · {sketch.cons.length} cons ·{" "}
+            {status} · ~{approxDof} DOF (approx)
           </span>
+          {/* Over-constrained is a determinate answer — the constraints conflict —
+              NOT a crash: the sketch analogue of an infeasible duty. Distinct by
+              SHAPE (◇ diamond) as well as colour, per the greyscale-safe rule. */}
+          {sketch.cons.length > 0 &&
+            (overConstrained ? (
+              <span className="flex items-center gap-1 font-mono text-xs text-verdict">
+                <span>◇</span> over-constrained — constraints conflict
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 font-mono text-xs text-success">
+                <span>●</span> solved
+              </span>
+            ))}
           <button
             type="button"
             onClick={clearSketch}
