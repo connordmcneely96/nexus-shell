@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { Sketch, Pt, Seg, Constraint } from "./sketch/types";
+import { closedLoops } from "./sketch/topology";
 
 // SketchCanvas — a 2D SVG drafting surface. No Three.js, no camera trick; a clean
 // 2D layer. The viewBox maps mm to SVG units with the origin centred; a group
@@ -257,25 +258,21 @@ export default function SketchCanvas({
 
   const selPtSet = new Set(selection.pts);
   const selSegSet = new Set(selection.segs);
+
+  // Profile status from REAL topology (a graph walk), not a segs>=pts count. This
+  // is what S5's extrude gate will read: only a single simple closed loop is
+  // extrudable. When there is structure that is not a clean single loop (extra
+  // loops or a junction/stub), say so — honest about WHY it is not extrudable.
+  const topo = closedLoops(sketch);
   const status = chain.length
     ? "drawing…"
-    : sketch.pts.length >= 3 && sketch.segs.length >= sketch.pts.length
-      ? "closed profile"
-      : "open";
-
-  // Approximate DOF: 2 per point minus the DOF each constraint NOMINALLY removes.
-  // It is a naive count — it ignores redundancy and conflict — so it is labelled
-  // "approx", never presented as an exact solved DOF.
-  const DOF_REMOVED: Record<Constraint["kind"], number> = {
-    horizontal: 1,
-    vertical: 1,
-    coincident: 2,
-    distance: 1,
-    equal: 1,
-    fixed: 2,
-  };
-  const approxDof =
-    2 * sketch.pts.length - sketch.cons.reduce((n, c) => n + DOF_REMOVED[c.kind], 0);
+    : sketch.segs.length === 0
+      ? "empty"
+      : topo.isClosedProfile
+        ? "closed profile"
+        : topo.loopCount >= 1
+          ? "open · not a single loop"
+          : "open";
 
   return (
     <div className="flex h-full flex-col">
@@ -426,8 +423,7 @@ export default function SketchCanvas({
         </span>
         <div className="flex items-center gap-4">
           <span className="font-mono text-xs">
-            {sketch.pts.length} pts · {sketch.segs.length} segs · {sketch.cons.length} cons ·{" "}
-            {status} · ~{approxDof} DOF (approx)
+            {sketch.pts.length} pts · {sketch.segs.length} segs · {sketch.cons.length} cons · {status}
           </span>
           {/* Over-constrained is a determinate answer — the constraints conflict —
               NOT a crash: the sketch analogue of an infeasible duty. Distinct by
