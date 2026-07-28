@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import type { Sketch, Pt, Seg } from "./sketch/types";
+import type { Sketch, Pt, Seg, Constraint } from "./sketch/types";
 
 // SketchCanvas — a 2D SVG drafting surface. No Three.js, no camera trick; a clean
 // 2D layer. The viewBox maps mm to SVG units with the origin centred; a group
@@ -10,15 +10,17 @@ import type { Sketch, Pt, Seg } from "./sketch/types";
 // come from token classes via currentColor — no raw hex here (the WebGL hex
 // exemption is Viewport.tsx only). Pan/zoom is not in this slice: a fixed extent.
 //
-// Snapping is rounding to a grid — nothing more. There is no solver here; the
-// constraint solver is S4b and out of scope.
+// Snapping is rounding to a grid — nothing more. There is no solver in this file;
+// the solver is pure and lives in sketch/solver.ts, driven by ModelPane.
+
+// A transient selection used for constraint authoring: points and/or segments.
+export type Selection = { pts: string[]; segs: string[] };
 
 const EXTENT = 200; // mm half-extent; the canvas spans -EXTENT..EXTENT on both axes
 const GRID = 20; // mm grid spacing (visual)
 const SNAP = 5; // mm placement grid
 const CLOSE_TOL = 5; // mm; a click within this of the chain's first point closes it
 
-// Grid line positions across the extent.
 const LINES: number[] = [];
 for (let v = -EXTENT; v <= EXTENT; v += GRID) LINES.push(v);
 
@@ -30,23 +32,48 @@ function ptById(sketch: Sketch, id: string): Pt | undefined {
   return sketch.pts.find((p) => p.id === id);
 }
 
-// Does a segment reference this point id? (Covers every seg kind.)
 function segRefsPt(seg: Seg, id: string): boolean {
   if (seg.kind === "line") return seg.a === id || seg.b === id;
   if (seg.kind === "circle") return seg.c === id;
   return seg.c === id || seg.a === id || seg.b === id; // arc
 }
 
+// Does a constraint reference any removed point or segment? Used to prune dangling
+// constraints when their geometry is deleted.
+function conRefsRemoved(c: Constraint, rmPts: Set<string>, rmSegs: Set<string>): boolean {
+  switch (c.kind) {
+    case "horizontal":
+    case "vertical":
+      return rmSegs.has(c.seg);
+    case "coincident":
+      return rmPts.has(c.a) || rmPts.has(c.b);
+    case "equal":
+      return rmSegs.has(c.seg1) || rmSegs.has(c.seg2);
+    case "distance":
+      return rmPts.has(c.a) || rmPts.has(c.b);
+    case "fixed":
+      return rmPts.has(c.pt);
+  }
+}
+
+// Toggle a member in a string list (used for building pairs via shift-click).
+const toggle = (list: string[], id: string) =>
+  list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
 export default function SketchCanvas({
   sketch,
   onSketchChange,
-  selectedPt,
-  onSelectPt,
+  selection,
+  onSelection,
+  overConstrained,
 }: {
   sketch: Sketch;
-  onSketchChange: (s: Sketch) => void;
-  selectedPt: string | null;
-  onSelectPt: (id: string | null) => void;
+  // A `pinId` marks a transiently-dragged point so ModelPane's solve holds it
+  // fixed and lets the rest of the sketch follow the user's lead.
+  onSketchChange: (s: Sketch, pinId?: string | null) => void;
+  selection: Selection;
+  onSelection: (s: Selection) => void;
+  overConstrained?: boolean;
 }) {
   const gRef = useRef<SVGGElement>(null);
   const [chain, setChain] = useState<string[]>([]); // pt ids of the active polyline
@@ -55,8 +82,8 @@ export default function SketchCanvas({
   // Refs so the single keydown listener reads live state without re-registering.
   const sketchRef = useRef(sketch);
   sketchRef.current = sketch;
-  const selRef = useRef(selectedPt);
-  selRef.current = selectedPt;
+  const selRef = useRef(selection);
+  selRef.current = selection;
   const draggingRef = useRef<string | null>(null);
 
   // Stable id counter, seeded from the existing sketch so a remount does not
@@ -70,29 +97,34 @@ export default function SketchCanvas({
   }
   const gid = (prefix: string) => `${prefix}${idRef.current!++}`;
 
-  // Escape ends the current chain; Delete/Backspace removes the selected point
-  // and every segment referencing it. Reads refs so it registers once.
+  // Escape ends the current chain; Delete/Backspace removes the selected points,
+  // their segments, and any constraints referencing them. Reads refs so it
+  // registers once.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setChain([]);
         return;
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && selRef.current && !draggingRef.current) {
+      if ((e.key === "Delete" || e.key === "Backspace") && selRef.current.pts.length && !draggingRef.current) {
         e.preventDefault();
-        const id = selRef.current;
         const s = sketchRef.current;
+        const rmPts = new Set(selRef.current.pts);
+        const rmSegs = new Set(
+          s.segs.filter((seg) => [...rmPts].some((id) => segRefsPt(seg, id))).map((seg) => seg.id),
+        );
         onSketchChange({
           ...s,
-          pts: s.pts.filter((p) => p.id !== id),
-          segs: s.segs.filter((seg) => !segRefsPt(seg, id)),
+          pts: s.pts.filter((p) => !rmPts.has(p.id)),
+          segs: s.segs.filter((seg) => !rmSegs.has(seg.id)),
+          cons: s.cons.filter((c) => !conRefsRemoved(c, rmPts, rmSegs)),
         });
-        onSelectPt(null);
+        onSelection({ pts: [], segs: [] });
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onSketchChange, onSelectPt]);
+  }, [onSketchChange, onSelection]);
 
   // Screen -> sketch coords via the flipped group's CTM (the y-flip is included).
   const toRaw = (clientX: number, clientY: number): { x: number; y: number } | null => {
@@ -112,13 +144,13 @@ export default function SketchCanvas({
     chain.length >= 2 && !!cursor && !!firstChainPt && dist(cursor, firstChainPt) <= CLOSE_TOL;
 
   const handleMove = (e: ReactPointerEvent) => {
-    // Dragging a point: move it freely (snap happens on release).
     if (draggingRef.current) {
       const raw = toRaw(e.clientX, e.clientY);
       if (!raw) return;
       const id = draggingRef.current;
       const s = sketchRef.current;
-      onSketchChange({ ...s, pts: s.pts.map((p) => (p.id === id ? { ...p, x: raw.x, y: raw.y } : p)) });
+      // Pin the dragged point so the solver follows it rather than fighting it.
+      onSketchChange({ ...s, pts: s.pts.map((p) => (p.id === id ? { ...p, x: raw.x, y: raw.y } : p)) }, id);
       return;
     }
     const p = toSnapped(e.clientX, e.clientY);
@@ -137,7 +169,6 @@ export default function SketchCanvas({
   };
 
   const handleClick = (e: ReactMouseEvent) => {
-    // The second click of a double-click (detail === 2) ends the chain.
     if (e.detail >= 2) {
       setChain([]);
       return;
@@ -154,8 +185,8 @@ export default function SketchCanvas({
     }
 
     // Otherwise place a new point (starting or extending a chain). Placing clears
-    // any point selection — we are drawing, not editing.
-    onSelectPt(null);
+    // any selection — we are drawing, not editing.
+    onSelection({ pts: [], segs: [] });
     const pt: Pt = { id: gid("p"), x: p.x, y: p.y };
     const segs: Seg[] = chain.length
       ? [...sketch.segs, { id: gid("s"), kind: "line", a: chain[chain.length - 1], b: pt.id }]
@@ -164,32 +195,87 @@ export default function SketchCanvas({
     setChain([...chain, pt.id]);
   };
 
-  // Select + begin dragging a point. Only when NOT mid-chain — while drawing,
-  // points must stay transparent to the svg handler (so a click near the first
-  // point can close the loop).
+  // Select + (plain click) begin dragging a point; shift-click builds a pair. Only
+  // when NOT mid-chain — while drawing, geometry stays transparent to the svg so a
+  // click near the first point can close the loop.
   const onPtDown = (e: ReactPointerEvent, id: string) => {
     if (chain.length) return;
     e.stopPropagation();
-    onSelectPt(id);
+    if (e.shiftKey) {
+      onSelection({ pts: toggle(selRef.current.pts, id), segs: [] });
+      return;
+    }
+    onSelection({ pts: [id], segs: [] });
     draggingRef.current = id;
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
   };
-  // Swallow the click that follows a point interaction so the svg does not also
-  // place a new point on top of it.
-  const onPtClick = (e: ReactMouseEvent) => {
+  const onSegDown = (e: ReactPointerEvent, id: string) => {
+    if (chain.length) return;
+    e.stopPropagation();
+    onSelection(
+      e.shiftKey ? { pts: [], segs: toggle(selRef.current.segs, id) } : { pts: [], segs: [id] },
+    );
+  };
+  // Swallow the click that follows a geometry interaction so the svg does not draw.
+  const onGeomClick = (e: ReactMouseEvent) => {
     if (chain.length) return;
     e.stopPropagation();
   };
 
+  // Upright glyph near a constraint's geometry. Rendered in an un-flipped overlay
+  // (text at y = -sketchY), so it reads right-way-up. Glyphs carry shape, not just
+  // colour — the same greyscale-safe discipline the tree uses.
+  const segMid = (segId: string): { x: number; y: number } | null => {
+    const seg = sketch.segs.find((s) => s.id === segId);
+    if (!seg || seg.kind !== "line") return null;
+    const a = ptById(sketch, seg.a);
+    const b = ptById(sketch, seg.b);
+    if (!a || !b) return null;
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  };
+  const glyph = (key: string, at: { x: number; y: number } | null | undefined, text: string, cls: string) =>
+    at ? (
+      <text
+        key={key}
+        x={at.x}
+        y={-at.y}
+        fontSize={12}
+        textAnchor="middle"
+        dominantBaseline="central"
+        className={cls}
+        fill="currentColor"
+      >
+        {text}
+      </text>
+    ) : null;
+
   const clearSketch = () => {
-    onSketchChange({ ...sketch, pts: [], segs: [] });
+    onSketchChange({ ...sketch, pts: [], segs: [], cons: [] });
     setChain([]);
-    onSelectPt(null);
+    onSelection({ pts: [], segs: [] });
   };
 
-  const selPt = selectedPt ? ptById(sketch, selectedPt) : undefined;
-  const closed = sketch.pts.length >= 3 && sketch.segs.length >= sketch.pts.length;
-  const status = chain.length ? "drawing…" : closed ? "closed profile" : "open";
+  const selPtSet = new Set(selection.pts);
+  const selSegSet = new Set(selection.segs);
+  const status = chain.length
+    ? "drawing…"
+    : sketch.pts.length >= 3 && sketch.segs.length >= sketch.pts.length
+      ? "closed profile"
+      : "open";
+
+  // Approximate DOF: 2 per point minus the DOF each constraint NOMINALLY removes.
+  // It is a naive count — it ignores redundancy and conflict — so it is labelled
+  // "approx", never presented as an exact solved DOF.
+  const DOF_REMOVED: Record<Constraint["kind"], number> = {
+    horizontal: 1,
+    vertical: 1,
+    coincident: 2,
+    distance: 1,
+    equal: 1,
+    fixed: 2,
+  };
+  const approxDof =
+    2 * sketch.pts.length - sketch.cons.reduce((n, c) => n + DOF_REMOVED[c.kind], 0);
 
   return (
     <div className="flex h-full flex-col">
@@ -214,24 +300,37 @@ export default function SketchCanvas({
               ))}
             </g>
 
-            {/* origin crosshair — a subtle axis tint */}
+            {/* origin crosshair */}
             <g className="text-text-muted" stroke="currentColor">
               <line x1={-EXTENT} y1={0} x2={EXTENT} y2={0} strokeWidth={1} vectorEffect="non-scaling-stroke" />
               <line x1={0} y1={-EXTENT} x2={0} y2={EXTENT} strokeWidth={1} vectorEffect="non-scaling-stroke" />
             </g>
 
-            {/* committed line segments */}
-            <g className="text-accent" stroke="currentColor">
-              {sketch.segs.map((s) => {
-                if (s.kind !== "line") return null;
-                const a = ptById(sketch, s.a);
-                const b = ptById(sketch, s.b);
-                if (!a || !b) return null;
-                return (
-                  <line key={s.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-                );
-              })}
-            </g>
+            {/* line segments + wide invisible hit lines for selection */}
+            {sketch.segs.map((s) => {
+              if (s.kind !== "line") return null;
+              const a = ptById(sketch, s.a);
+              const b = ptById(sketch, s.b);
+              if (!a || !b) return null;
+              const sel = selSegSet.has(s.id);
+              return (
+                <g key={s.id} className="text-accent">
+                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="currentColor" strokeWidth={sel ? 2.75 : 1.5} vectorEffect="non-scaling-stroke" />
+                  <line
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke="transparent"
+                    strokeWidth={10}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ cursor: chain.length ? "crosshair" : "pointer", pointerEvents: "stroke" }}
+                    onPointerDown={(e) => onSegDown(e, s.id)}
+                    onClick={onGeomClick}
+                  />
+                </g>
+              );
+            })}
 
             {/* rubber-band from the last placed point to the cursor */}
             {lastChainPt && cursor && (
@@ -249,19 +348,12 @@ export default function SketchCanvas({
               />
             )}
 
-            {/* selection ring */}
-            {selPt && (
-              <circle
-                className="text-accent"
-                cx={selPt.x}
-                cy={selPt.y}
-                r={5}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                vectorEffect="non-scaling-stroke"
-              />
-            )}
+            {/* selection rings */}
+            {sketch.pts
+              .filter((p) => selPtSet.has(p.id))
+              .map((p) => (
+                <circle key={`sel${p.id}`} className="text-accent" cx={p.x} cy={p.y} r={5} fill="none" stroke="currentColor" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+              ))}
 
             {/* points — interactive for select/drag when not mid-chain */}
             <g className="text-accent" fill="currentColor">
@@ -273,7 +365,7 @@ export default function SketchCanvas({
                   r={2.5}
                   style={{ cursor: chain.length ? "crosshair" : "pointer" }}
                   onPointerDown={(e) => onPtDown(e, p.id)}
-                  onClick={onPtClick}
+                  onClick={onGeomClick}
                 />
               ))}
             </g>
@@ -292,6 +384,36 @@ export default function SketchCanvas({
               />
             )}
           </g>
+
+          {/* constraint glyphs — upright overlay (text at y = -sketchY) */}
+          <g>
+            {sketch.cons.map((c) => {
+              switch (c.kind) {
+                case "horizontal":
+                  return glyph(c.id, segMid(c.seg), "═", "text-text-muted");
+                case "vertical":
+                  return glyph(c.id, segMid(c.seg), "‖", "text-text-muted");
+                case "equal":
+                  return (
+                    <g key={c.id}>
+                      {glyph(`${c.id}a`, segMid(c.seg1), "=", "text-text-muted")}
+                      {glyph(`${c.id}b`, segMid(c.seg2), "=", "text-text-muted")}
+                    </g>
+                  );
+                case "distance": {
+                  const a = ptById(sketch, c.a);
+                  const b = ptById(sketch, c.b);
+                  const at = a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null;
+                  // The typed dimension is USER input — text-accent, never grounded.
+                  return glyph(c.id, at, `◆${c.d}`, "text-accent");
+                }
+                case "coincident":
+                  return glyph(c.id, ptById(sketch, c.a), "⊙", "text-text-muted");
+                case "fixed":
+                  return glyph(c.id, ptById(sketch, c.pt), "⊠", "text-text-muted");
+              }
+            })}
+          </g>
         </svg>
       </div>
       <div className="flex items-center justify-between gap-4 border-t border-border-subtle px-5 py-3 text-sm text-text-faint">
@@ -300,12 +422,26 @@ export default function SketchCanvas({
             or grounded, so it says so plainly. */}
         <span className="flex items-center gap-2">
           <span className="text-accent">◆</span>
-          Sketch plane {sketch.plane} — user-drawn · ungrounded · 2D draft, not constrained.
+          Sketch plane {sketch.plane} — user-drawn · ungrounded · 2D draft.
         </span>
         <div className="flex items-center gap-4">
           <span className="font-mono text-xs">
-            {sketch.pts.length} pts · {sketch.segs.length} segs · {status}
+            {sketch.pts.length} pts · {sketch.segs.length} segs · {sketch.cons.length} cons ·{" "}
+            {status} · ~{approxDof} DOF (approx)
           </span>
+          {/* Over-constrained is a determinate answer — the constraints conflict —
+              NOT a crash: the sketch analogue of an infeasible duty. Distinct by
+              SHAPE (◇ diamond) as well as colour, per the greyscale-safe rule. */}
+          {sketch.cons.length > 0 &&
+            (overConstrained ? (
+              <span className="flex items-center gap-1 font-mono text-xs text-verdict">
+                <span>◇</span> over-constrained — constraints conflict
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 font-mono text-xs text-success">
+                <span>●</span> solved
+              </span>
+            ))}
           <button
             type="button"
             onClick={clearSketch}

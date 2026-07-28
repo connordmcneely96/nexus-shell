@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
 import dynamic from "next/dynamic";
 import ModelToolbar from "./ModelToolbar";
 import SketchCanvas from "./SketchCanvas";
-import type { Sketch } from "./sketch/types";
+import type { Selection } from "./SketchCanvas";
+import ConstraintBar from "./sketch/ConstraintBar";
+import { solve } from "./sketch/solver";
+import type { Sketch, Constraint } from "./sketch/types";
 import type { CamCommand, ViewKind } from "./Viewport";
 
 // Load the viewport lazily and client-only so Three.js is not pulled into the
@@ -22,7 +25,7 @@ const Viewport = dynamic(() => import("./Viewport"), {
 });
 
 // Sketch is a MODE, not a CREATE op; the canvas is controlled from here.
-const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [] };
+const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [], cons: [] };
 
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
@@ -49,7 +52,40 @@ export default function ModelPane() {
   // region; the tree rail stays. Drawing is a view state, allowed in any tier.
   const [mode, setMode] = useState<"model" | "sketch">("model");
   const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
-  const [selectedPt, setSelectedPt] = useState<string | null>(null);
+  // Sketch selection — points and/or segments — drives constraint authoring. A
+  // single selected point also drives drag/delete. One useState, no store.
+  const [selection, setSelection] = useState<Selection>({ pts: [], segs: [] });
+  // Over-constrained is the sketch's infeasible: solve() returned converged=false.
+  // We keep the best-effort geometry and surface the state, never hide it.
+  const [overConstrained, setOverConstrained] = useState(false);
+
+  // Every sketch mutation runs the constraint solver when constraints exist.
+  // `pinId` (a transiently dragged point) is added as a temporary fixed so the
+  // user leads and the rest follows; it is stripped from the stored sketch.
+  const applySketch = (next: Sketch, pinId?: string | null) => {
+    if (next.cons.length === 0) {
+      setSketch(next);
+      setOverConstrained(false);
+      return;
+    }
+    const cons: Constraint[] = pinId
+      ? [...next.cons, { id: "__drag_pin__", kind: "fixed", pt: pinId }]
+      : next.cons;
+    const r = solve({ ...next, cons });
+    setSketch({ ...r.sketch, cons: next.cons }); // keep user constraints, drop the transient pin
+    setOverConstrained(!r.converged);
+  };
+
+  // Constraint ids are minted here (ModelPane persists across mode toggles).
+  const conIdRef = useRef(0);
+  const addConstraint = (make: (id: string) => Constraint) => {
+    const c = make(`k${conIdRef.current++}`);
+    applySketch({ ...sketch, cons: [...sketch.cons, c] });
+  };
+  const removeConstraint = (id: string) => {
+    applySketch({ ...sketch, cons: sketch.cons.filter((c) => c.id !== id) });
+  };
+
   const runView = (kind: ViewKind) =>
     setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
 
@@ -127,13 +163,24 @@ export default function ModelPane() {
             onToggleSketch={() => setMode((m) => (m === "sketch" ? "model" : "sketch"))}
           />
         </div>
+        {mode === "sketch" && (
+          <div className="border-b border-border-subtle px-5 py-2">
+            <ConstraintBar
+              sketch={sketch}
+              selection={selection}
+              onAddConstraint={addConstraint}
+              onRemoveConstraint={removeConstraint}
+            />
+          </div>
+        )}
         <div className="min-h-0 flex-1">
           {mode === "sketch" ? (
             <SketchCanvas
               sketch={sketch}
-              onSketchChange={setSketch}
-              selectedPt={selectedPt}
-              onSelectPt={setSelectedPt}
+              onSketchChange={applySketch}
+              selection={selection}
+              onSelection={setSelection}
+              overConstrained={overConstrained}
             />
           ) : (
             <Viewport command={camCommand} selected={selected} onSelect={setSelected} />

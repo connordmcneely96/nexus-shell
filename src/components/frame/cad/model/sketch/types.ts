@@ -15,4 +15,17 @@ export type Seg =
   | { id: string; kind: "circle"; c: string; r: number } // c = Pt id
   | { id: string; kind: "arc"; c: string; a: string; b: string };
 
-export type Sketch = { plane: "XY" | "XZ" | "YZ"; pts: Pt[]; segs: Seg[] };
+// A Constraint is a relationship the iterative solver enforces by local
+// correction. A `distance` constraint's `d` is a USER-TYPED number — `user`
+// provenance, real input in the same category as a duty value, NEVER a
+// solver-produced engineering value; it must not be presented as grounded or
+// checked. Geometric constraints carry no number.
+export type Constraint =
+  | { id: string; kind: "horizontal"; seg: string } // a line seg id
+  | { id: string; kind: "vertical"; seg: string }
+  | { id: string; kind: "coincident"; a: string; b: string } // two pt ids
+  | { id: string; kind: "equal"; seg1: string; seg2: string } // equal length
+  | { id: string; kind: "distance"; a: string; b: string; d: number } // mm, user-typed
+  | { id: string; kind: "fixed"; pt: string }; // pinned point
+
+export type Sketch = { plane: "XY" | "XZ" | "YZ"; pts: Pt[]; segs: Seg[]; cons: Constraint[] };
