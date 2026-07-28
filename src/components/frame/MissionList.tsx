@@ -1,51 +1,58 @@
-import type { Mission } from "@/mock/missions";
+import type { BadgeState } from "@/shell/contract";
 import StatusChip from "@/components/gadgets/StatusChip";
 
-// Mission cards. Part of Stage's client tree (imported by a client
-// component), so no 'use client' directive of its own. Tokens only, no hex.
+// Mission cards. A shared view-model renders both the LIVE CAD summaries and the
+// MOCK web missions through one shape — web is NOT forced through the live path.
+// Part of Stage's client tree, so no 'use client' directive of its own.
 
-const VERTICAL_BADGE: Record<Mission["vertical"], { letter: string; cls: string }> = {
+export interface MissionCard {
+  id: string; // runId (cad) or mission id (web)
+  vertical: "web" | "cad";
+  name: string;
+  subtitle?: string;
+  status: BadgeState;
+  opsLine: string;
+  blockingConstraint?: string;
+}
+
+const VERTICAL_BADGE: Record<MissionCard["vertical"], { letter: string; cls: string }> = {
   web: { letter: "W", cls: "border-accent text-accent" },
   cad: { letter: "C", cls: "border-success text-success" },
 };
 
 export default function MissionList({
-  missions,
+  cards,
   onSelect,
 }: {
-  missions: Mission[];
-  onSelect: (m: Mission) => void;
+  cards: MissionCard[];
+  onSelect: (card: MissionCard) => void;
 }) {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <h1 className="mb-4 text-lg text-text-primary">Missions</h1>
       <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {missions.map((m) => {
-          const badge = VERTICAL_BADGE[m.vertical];
+        {cards.map((c) => {
+          const badge = VERTICAL_BADGE[c.vertical];
           return (
-            <li key={m.id}>
+            <li key={c.id}>
               <button
                 type="button"
-                onClick={() => onSelect(m)}
+                onClick={() => onSelect(c)}
                 className="w-full rounded-md border border-border-subtle bg-surface-raised p-4 text-left hover:border-border-strong"
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="min-w-0">
-                    <span className="block truncate text-sm text-text-primary">{m.name}</span>
-                    <span className="block text-xs text-text-muted">{m.client}</span>
+                    <span className="block truncate text-sm text-text-primary">{c.name}</span>
+                    {c.subtitle && <span className="block truncate text-xs text-text-muted">{c.subtitle}</span>}
                   </span>
                   <span className={`shrink-0 rounded-sm border px-2 text-xs ${badge.cls}`}>{badge.letter}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <StatusChip state={m.status} pulse={m.status === "running"} />
-                  <span className="font-mono text-xs text-text-muted">
-                    {m.status === "infeasible" && m.cycle !== undefined
-                      ? `stopped · cycle ${m.cycle} of ${m.maxCycles}`
-                      : `$${m.cost.toFixed(2)} · ${m.elapsed}s · ${m.runCount} runs`}
-                  </span>
+                  <StatusChip state={c.status} pulse={c.status === "running"} />
+                  <span className="font-mono text-xs text-text-muted">{c.opsLine}</span>
                 </div>
-                {m.status === "infeasible" && m.blockingConstraint && (
-                  <div className="mt-2 text-xs text-verdict">{m.blockingConstraint}</div>
+                {c.blockingConstraint && (
+                  <div className="mt-2 line-clamp-2 text-xs text-verdict">{c.blockingConstraint}</div>
                 )}
               </button>
             </li>

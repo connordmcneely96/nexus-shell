@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { groups } from "@/nav/config";
 import { missions } from "@/mock/missions";
+import { loadCadMissions } from "@/shell/cadRun";
 
 // Command palette. Groups and Tokens navigate; missions open the Missions
 // surface; tools are findable but NOT reachable — selecting one flashes its
@@ -15,8 +16,13 @@ type Entry =
   | { kind: "tool"; key: string; label: string; hint: string };
 
 const ENTRIES: Entry[] = [
-  ...missions.map((m) => ({
-    kind: "mission" as const, key: `m-${m.id}`, label: m.name, hint: m.vertical, mid: m.id,
+  // Web missions stay mock; CAD missions come from the live list — same ids the
+  // Missions surface opens, so the palette and the list never drift.
+  ...missions
+    .filter((m) => m.vertical === "web")
+    .map((m) => ({ kind: "mission" as const, key: `m-${m.id}`, label: m.name, hint: "web", mid: m.id })),
+  ...loadCadMissions().map((s) => ({
+    kind: "mission" as const, key: `m-${s.runId}`, label: s.name, hint: "cad", mid: s.runId,
   })),
   ...groups.map((g) => ({
     kind: "route" as const, key: `g-${g.id}`, label: g.label, hint: `/g/${g.id}`, href: `/g/${g.id}`,

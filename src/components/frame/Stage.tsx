@@ -3,16 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Group, Panel, Separator, usePanelRef } from "react-resizable-panels";
 import { verticals } from "@/shell/verticals";
-import { missions, type Mission } from "@/mock/missions";
+import { missions } from "@/mock/missions";
 import { useRunClock } from "@/shell/useRunClock";
 import { shellLayout, useShellLayout, useIsNarrow } from "@/shell/useShellLayout";
-import { loadCadRun } from "@/shell/cadRun";
+import { loadCadMissions, loadCadRunById } from "@/shell/cadRun";
 import { isProvisional } from "@/shell/cadAdapter";
 import { projectBadge } from "@/shell/projectBadge";
+import type { FiveState, BadgeState } from "@/shell/contract";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
 import Composer from "./Composer";
-import MissionList from "./MissionList";
+import MissionList, { type MissionCard } from "./MissionList";
 import CadPanes from "./cad/CadPanes";
 import GateDrawer from "./GateDrawer";
 
@@ -27,29 +28,43 @@ export default function Stage() {
   const [view, setView] = useState<"missions" | "mission">("missions");
   const [vid, setVid] = useState<"web" | "cad">("web");
   const [missionId, setMissionId] = useState<string | null>(null);
+  const [cadRunId, setCadRunId] = useState<string | null>(null);
   const base = verticals.find((v) => v.id === vid)!;
   const [modeId, setModeId] = useState(base.modes[0].id);
 
+  // Web missions stay MOCK; CAD missions are LIVE summaries.
+  const cadSummaries = loadCadMissions();
+  const cadModes = verticals.find((v) => v.id === "cad")!.modes;
+  const webModes = verticals.find((v) => v.id === "web")!.modes;
+
+  const openCad = (runId: string) => {
+    setVid("cad");
+    setCadRunId(runId);
+    setMissionId(null);
+    setModeId(cadModes[0].id);
+    setView("mission");
+  };
+  const openWeb = (id: string) => {
+    const m = missions.find((x) => x.id === id && x.vertical === "web");
+    if (!m) return;
+    setVid("web");
+    setMissionId(m.id);
+    setCadRunId(null);
+    setModeId(webModes[0].id);
+    setView("mission");
+  };
+
   useEffect(() => {
-    const openMission = (id: string) => {
-      const m = missions.find((x) => x.id === id);
-      if (!m) return;
-      const v = verticals.find((x) => x.id === m.vertical)!;
-      setVid(v.id);
-      setMissionId(m.id);
-      setModeId(v.modes[0].id);
-      setView("mission");
+    const openById = (id: string) => {
+      if (loadCadMissions().some((s) => s.runId === id)) openCad(id);
+      else openWeb(id);
     };
     const onShow = () => setView("missions");
-    const onOpen = (e: Event) => openMission((e as CustomEvent<{ id?: string }>).detail?.id ?? "");
+    const onOpen = (e: Event) => openById((e as CustomEvent<{ id?: string }>).detail?.id ?? "");
     const onSetVertical = (e: Event) => {
       const id = (e as CustomEvent<{ id?: string }>).detail?.id;
-      const v = verticals.find((x) => x.id === id);
-      if (!v) return;
-      setVid(v.id);
-      setMissionId(null);
-      setModeId(v.modes[0].id);
-      setView("mission");
+      if (id === "cad") openCad(loadCadMissions()[0]?.runId ?? "");
+      else if (id === "web") openWeb(missions.find((m) => m.vertical === "web")?.id ?? "");
     };
     window.addEventListener("nexus:show-missions", onShow);
     window.addEventListener("nexus:open-mission", onOpen);
@@ -59,34 +74,43 @@ export default function Stage() {
       window.removeEventListener("nexus:open-mission", onOpen);
       window.removeEventListener("nexus:set-vertical", onSetVertical);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectMission = (m: Mission) => {
-    const v = verticals.find((x) => x.id === m.vertical)!;
-    setVid(v.id);
-    setMissionId(m.id);
-    setModeId(v.modes[0].id);
-    setView("mission");
+  const onSelectCard = (card: MissionCard) => {
+    if (card.vertical === "cad") openCad(card.id);
+    else openWeb(card.id);
   };
 
-  const selected = missionId ? missions.find((m) => m.id === missionId) : null;
-  const stage = selected
-    ? {
-        ...base,
-        crumb: [...base.crumb.slice(0, -1), selected.name],
-        status: selected.status,
-        statusDetail:
-          selected.status === "running"
-            ? base.statusDetail
-            : selected.status === "infeasible" && selected.cycle !== undefined
-              ? `stopped · cycle ${selected.cycle} of ${selected.maxCycles}`
-              : undefined,
-      }
-    : base;
+  // Web: the selected MOCK mission. CAD: the LIVE record for the selected runId
+  // (runId flows list → cadAdapter → stage, so list and detail agree).
+  const selectedWeb = vid === "web" && missionId ? missions.find((m) => m.id === missionId) : null;
+  const cadRecord =
+    view === "mission" && vid === "cad"
+      ? loadCadRunById(cadRunId ?? cadSummaries[0]?.runId ?? "")
+      : null;
+  const cadSummary = cadRecord ? cadSummaries.find((s) => s.runId === cadRecord.run.runId) : undefined;
+
+  const headBadge: BadgeState | undefined = cadRecord
+    ? projectBadge(cadRecord.run.status, cadRecord.run.designStatus)
+    : selectedWeb?.status;
+
+  const crumbLast = cadRecord ? (cadSummary?.name ?? cadRecord.run.spec) : selectedWeb?.name;
+  const stopped =
+    cadRecord && headBadge === "infeasible"
+      ? `stopped · cycle ${cadRecord.run.cycle} of ${cadRecord.run.maxCycles}`
+      : selectedWeb && selectedWeb.status === "infeasible" && selectedWeb.cycle !== undefined
+        ? `stopped · cycle ${selectedWeb.cycle} of ${selectedWeb.maxCycles}`
+        : undefined;
+  const statusDetail = selectedWeb?.status === "running" ? base.statusDetail : stopped;
+
+  const stage = crumbLast
+    ? { ...base, crumb: [...base.crumb.slice(0, -1), crumbLast], statusDetail }
+    : { ...base, statusDetail };
   const mode = stage.modes.find((m) => m.id === modeId) ?? stage.modes[0];
 
-  // The active run: the running CAD mission. The clock only ticks when live.
-  const isLiveRun = view === "mission" && stage.id === "cad" && stage.status === "running";
+  // The active run: a RUNNING CAD convergence. The clock only ticks when live.
+  const isLiveRun = view === "mission" && vid === "cad" && cadRecord?.run.status === "running";
   const run = useRunClock(isLiveRun);
   // StageHead statusDetail reads the live cycle for the running CAD mission.
   const headStage = isLiveRun ? { ...stage, statusDetail: `CYCLE ${run.cycle}/20` } : stage;
@@ -110,24 +134,54 @@ export default function Stage() {
     else if (!brainCollapsed && p.isCollapsed()) p.expand();
   }, [brainCollapsed, brainRef]);
 
-  const isModel = stage.id === "cad" && mode.id === "model";
+  const isModel = vid === "cad" && mode.id === "model";
 
-  // ── CAD live read ──────────────────────────────────────────────────────
-  // The CAD STAGE now reads the live run record (via the adapter's fixture
-  // path in dev). The badge is the shipped §3 projection; the two undismissable
-  // notices are data-driven. (The CAD mission LIST stays mock — rewiring it to
-  // real runs is out of scope this sprint.)
-  const cadRecord = view === "mission" && stage.id === "cad" ? loadCadRun() : null;
-  const cadBadge = cadRecord
-    ? projectBadge(cadRecord.run.status, cadRecord.run.designStatus)
-    : undefined;
+  // ── CAD live read: badge + data-driven undismissable notices ────────────
   const showProvisional = !!cadRecord && isProvisional(cadRecord.design);
   const showAccuracy = !!cadRecord && cadRecord.design !== null;
-  // Provisional banner is now data-driven: keep the locked wording, but only
-  // when the live design actually carries provisional pack sections.
-  const cadHeadStage = cadRecord
-    ? { ...headStage, provisionalBanner: showProvisional ? headStage.provisionalBanner : undefined }
-    : headStage;
+  const cadHeadStage =
+    vid === "cad"
+      ? { ...headStage, provisionalBanner: showProvisional ? base.provisionalBanner : undefined }
+      : headStage;
+
+  // Pane props resolve from the live record (CAD) or the mock mission (web).
+  const FIVE: readonly string[] = ["pending", "running", "converged", "infeasible", "failed"];
+  const paneStatus: FiveState =
+    cadRecord
+      ? (FIVE.includes(cadRecord.run.status) ? (cadRecord.run.status as FiveState) : "failed")
+      : (selectedWeb?.status ?? stage.status);
+  const paneBlocking = cadRecord ? cadSummary?.blockingConstraint : selectedWeb?.blockingConstraint;
+  const paneCycle = cadRecord ? cadRecord.run.cycle : selectedWeb?.cycle;
+  const paneMax = cadRecord ? cadRecord.run.maxCycles : selectedWeb?.maxCycles;
+
+  // Cards: mock web missions + live CAD summaries, one shared shape.
+  const cards: MissionCard[] = [
+    ...missions
+      .filter((m) => m.vertical === "web")
+      .map<MissionCard>((m) => ({
+        id: m.id,
+        vertical: "web",
+        name: m.name,
+        subtitle: m.client,
+        status: m.status,
+        opsLine:
+          m.status === "infeasible" && m.cycle !== undefined
+            ? `stopped · cycle ${m.cycle} of ${m.maxCycles}`
+            : `$${m.cost.toFixed(2)} · ${m.elapsed}s · ${m.runCount} runs`,
+        blockingConstraint: m.status === "infeasible" ? m.blockingConstraint : undefined,
+      })),
+    ...cadSummaries.map<MissionCard>((s) => ({
+      id: s.runId,
+      vertical: "cad",
+      name: s.name,
+      status: s.status,
+      opsLine:
+        s.status === "infeasible"
+          ? `stopped · cycle ${s.cycle} of ${s.maxCycles}`
+          : `cycle ${s.cycle} of ${s.maxCycles}`,
+      blockingConstraint: s.blockingConstraint,
+    })),
+  ];
 
   return (
     <>
@@ -135,10 +189,10 @@ export default function Stage() {
         <Panel id="stage-main" minSize={360} style={{ overflow: "hidden" }}>
           <section className="flex h-full min-w-0 flex-col">
             {view === "missions" ? (
-              <MissionList missions={missions} onSelect={selectMission} />
+              <MissionList cards={cards} onSelect={onSelectCard} />
             ) : (
               <>
-                <StageHead stage={cadHeadStage} badge={cadBadge} accuracyNotice={showAccuracy} />
+                <StageHead stage={cadHeadStage} badge={headBadge} accuracyNotice={showAccuracy} />
                 <div className="flex items-center gap-1 border-b border-border-subtle px-4 py-2">
                   {stage.modes.map((m) => (
                     <button
@@ -165,13 +219,13 @@ export default function Stage() {
                 {/* The Model pane must NOT sit in a scroll parent — give it height
                     directly; the scrollable panes keep their own overflow. */}
                 <section className={`min-h-0 flex-1 ${isModel ? "overflow-hidden" : "overflow-y-auto"}`}>
-                  {stage.id === "cad" ? (
+                  {vid === "cad" ? (
                     <CadPanes
                       modeId={mode.id}
-                      status={stage.status}
-                      blockingConstraint={selected?.blockingConstraint}
-                      cycle={selected?.cycle}
-                      maxCycles={selected?.maxCycles}
+                      status={paneStatus}
+                      blockingConstraint={paneBlocking}
+                      cycle={paneCycle}
+                      maxCycles={paneMax}
                       run={run}
                       record={cadRecord}
                     />
