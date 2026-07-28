@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { workbench } from "@/mock/workbench";
 import type { WorkbenchNode } from "@/mock/workbench";
 import dynamic from "next/dynamic";
 import ModelToolbar from "./ModelToolbar";
 import SketchCanvas from "./SketchCanvas";
+import type { Selection } from "./SketchCanvas";
+import ConstraintBar from "./sketch/ConstraintBar";
 import { solve } from "./sketch/solver";
 import type { Sketch, Constraint } from "./sketch/types";
 import type { CamCommand, ViewKind } from "./Viewport";
@@ -50,7 +52,9 @@ export default function ModelPane() {
   // region; the tree rail stays. Drawing is a view state, allowed in any tier.
   const [mode, setMode] = useState<"model" | "sketch">("model");
   const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
-  const [selectedPt, setSelectedPt] = useState<string | null>(null);
+  // Sketch selection — points and/or segments — drives constraint authoring. A
+  // single selected point also drives drag/delete. One useState, no store.
+  const [selection, setSelection] = useState<Selection>({ pts: [], segs: [] });
   // Over-constrained is the sketch's infeasible: solve() returned converged=false.
   // We keep the best-effort geometry and surface the state, never hide it.
   const [overConstrained, setOverConstrained] = useState(false);
@@ -70,6 +74,16 @@ export default function ModelPane() {
     const r = solve({ ...next, cons });
     setSketch({ ...r.sketch, cons: next.cons }); // keep user constraints, drop the transient pin
     setOverConstrained(!r.converged);
+  };
+
+  // Constraint ids are minted here (ModelPane persists across mode toggles).
+  const conIdRef = useRef(0);
+  const addConstraint = (make: (id: string) => Constraint) => {
+    const c = make(`k${conIdRef.current++}`);
+    applySketch({ ...sketch, cons: [...sketch.cons, c] });
+  };
+  const removeConstraint = (id: string) => {
+    applySketch({ ...sketch, cons: sketch.cons.filter((c) => c.id !== id) });
   };
 
   const runView = (kind: ViewKind) =>
@@ -149,13 +163,23 @@ export default function ModelPane() {
             onToggleSketch={() => setMode((m) => (m === "sketch" ? "model" : "sketch"))}
           />
         </div>
+        {mode === "sketch" && (
+          <div className="border-b border-border-subtle px-5 py-2">
+            <ConstraintBar
+              sketch={sketch}
+              selection={selection}
+              onAddConstraint={addConstraint}
+              onRemoveConstraint={removeConstraint}
+            />
+          </div>
+        )}
         <div className="min-h-0 flex-1">
           {mode === "sketch" ? (
             <SketchCanvas
               sketch={sketch}
               onSketchChange={applySketch}
-              selectedPt={selectedPt}
-              onSelectPt={setSelectedPt}
+              selection={selection}
+              onSelection={setSelection}
               overConstrained={overConstrained}
             />
           ) : (
