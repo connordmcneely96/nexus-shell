@@ -21,6 +21,18 @@ describe("cadMissionList projection", () => {
     expect(byId["570ac2c5-3283-4cf7-8c21-5f6840c4a314"].name).toContain("BB2");
   });
 
+  it("the summary carries status/cycle/counts ONLY — never an engineering value", () => {
+    const allowed = new Set([
+      "runId", "name", "status", "rawStatus", "designStatus",
+      "blockingConstraint", "cycle", "maxCycles", "createdAt",
+    ]);
+    const forbidden = ["diameter", "torque", "radialLoad", "bendingMoment", "checks", "assumptions", "length"];
+    for (const s of CAD_RUN_LIST_ROWS.map(mapMissionSummary)) {
+      for (const k of Object.keys(s)) expect(allowed.has(k)).toBe(true);
+      for (const k of forbidden) expect(k in s).toBe(false);
+    }
+  });
+
   it("a converged run over an UNGROUNDED design projects to pending (never green)", () => {
     const ungrounded: RawRunListRow = {
       run_id: "synthetic-ungrounded",
