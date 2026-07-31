@@ -9,6 +9,7 @@ import { shellLayout, useShellLayout, useIsNarrow } from "@/shell/useShellLayout
 import { loadCadMissions, loadCadRunById } from "@/shell/cadRun";
 import { isProvisional } from "@/shell/cadAdapter";
 import { projectBadge } from "@/shell/projectBadge";
+import { isVerified, RENDERED_DESIGN_FIELDS } from "@/shell/verifiedFields";
 import type { FiveState, BadgeState } from "@/shell/contract";
 import StageHead from "./StageHead";
 import Brain from "./Brain";
@@ -138,7 +139,20 @@ export default function Stage() {
 
   // ── CAD live read: badge + data-driven undismissable notices ────────────
   const showProvisional = !!cadRecord && isProvisional(cadRecord.design);
-  const showAccuracy = !!cadRecord && cadRecord.design !== null;
+  // Partial-verification summary: rendered engineering fields vs the registry.
+  // Only fields Lane 1 has independently cleared count as verified.
+  const design = cadRecord?.design ?? null;
+  const renderedFields = design
+    ? RENDERED_DESIGN_FIELDS.filter((f) => {
+        const v = (design as unknown as Record<string, unknown>)[f];
+        return typeof v === "number" && !Number.isNaN(v);
+      })
+    : [];
+  const accuracySummary = {
+    anyRendered: renderedFields.length > 0,
+    verifiedCount: renderedFields.filter(isVerified).length,
+    totalFields: renderedFields.length,
+  };
   const cadHeadStage =
     vid === "cad"
       ? { ...headStage, provisionalBanner: showProvisional ? base.provisionalBanner : undefined }
@@ -192,7 +206,7 @@ export default function Stage() {
               <MissionList cards={cards} onSelect={onSelectCard} />
             ) : (
               <>
-                <StageHead stage={cadHeadStage} badge={headBadge} accuracyNotice={showAccuracy} />
+                <StageHead stage={cadHeadStage} badge={headBadge} accuracyNotice={accuracySummary} />
                 <div className="flex items-center gap-1 border-b border-border-subtle px-4 py-2">
                   {stage.modes.map((m) => (
                     <button
