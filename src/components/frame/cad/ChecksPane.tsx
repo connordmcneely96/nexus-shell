@@ -1,5 +1,6 @@
 import { MachinedBlank, CiteTag } from "@/components/gadgets";
 import type { ParsedDesign } from "@/shell/cadAdapter";
+import { isCheckVerified } from "@/shell/verifiedFields";
 
 // Checks & Assumptions from LIVE design_json. THE ACCURACY RULE: computed/limit
 // numbers render (they are the product's output) with their citation and under
@@ -67,12 +68,24 @@ export default function ChecksPane({ design }: { design: ParsedDesign | null }) 
               <td className="py-2"><CiteTag>{c.citation}</CiteTag></td>
               <td className="py-2 font-mono text-xs text-text-primary">{`${c.computed} ${c.units}`}</td>
               <td className="py-2 font-mono text-xs text-text-muted">{`${c.limit} ${c.units}`}</td>
-              {/* pipeline result — never a validated checkmark */}
-              <td className="py-2 text-xs text-text-muted">{c.pass ? "pipeline pass" : "pipeline fail"}</td>
+              {/* A check reads "verified" ONLY when every input is in the
+                  registry — never today (CHECK_DEPENDENCIES is empty). Otherwise
+                  it stays "pipeline pass" under the caveat, never a validated ✓. */}
+              <td className="py-2 text-xs">
+                {isCheckVerified(c.criterion) ? (
+                  <span className="text-success">✓ verified</span>
+                ) : (
+                  <span className="text-text-muted">{c.pass ? "pipeline pass" : "pipeline fail"}</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="mt-2 max-w-4xl text-xs text-text-faint">
+        verified = cleared by independent PE-authority check; pipeline pass =
+        computed, not yet verified.
+      </p>
 
       <h3 className="mb-2 mt-6 text-sm text-text-muted">Assumptions</h3>
       <div className="flex max-w-3xl flex-col gap-2">
