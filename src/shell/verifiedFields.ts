@@ -14,6 +14,16 @@ export function isVerified(field: string): boolean {
   return field in VERIFIED_FIELDS;
 }
 
+// The scalar engineering fields a design surfaces under the accuracy notice.
+// The partial-verification summary is computed from these against the registry.
+export const RENDERED_DESIGN_FIELDS = [
+  "diameter",
+  "length",
+  "torque",
+  "radialLoad",
+  "bendingMoment",
+] as const;
+
 // Maps a check.criterion string to the design_json field(s) it depends on, so a
 // check is only "verified" when ALL of its inputs are verified.
 //

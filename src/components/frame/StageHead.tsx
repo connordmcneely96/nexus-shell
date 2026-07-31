@@ -7,8 +7,25 @@ import StatusChip from "@/components/gadgets/StatusChip";
 // whenever a persisted engineering value is rendered — the shell never asserts
 // a pipeline value is correct.
 
-const ACCURACY_NOTICE =
+const ACCURACY_BLANKET =
   "Values shown as computed by the pipeline — NOT independently verified. Accuracy review pending.";
+
+export interface AccuracySummary {
+  anyRendered: boolean;
+  verifiedCount: number;
+  totalFields: number;
+}
+
+// The notice narrows from blanket to partial as fields clear verification. It
+// is never a pass — always a neutral, undismissable caveat.
+function accuracyText(s: AccuracySummary): string | null {
+  if (!s.anyRendered) return null;
+  if (s.verifiedCount === 0) return ACCURACY_BLANKET;
+  if (s.verifiedCount < s.totalFields) {
+    return `Some values independently verified (${s.verifiedCount}); the remainder are computed by the pipeline and NOT yet verified. Accuracy review pending.`;
+  }
+  return "All rendered values independently verified.";
+}
 
 export default function StageHead({
   stage,
@@ -17,9 +34,10 @@ export default function StageHead({
 }: {
   stage: VerticalStage;
   badge?: BadgeState;
-  accuracyNotice?: boolean;
+  accuracyNotice?: AccuracySummary;
 }) {
   const { primaryAction } = stage;
+  const noticeText = accuracyNotice ? accuracyText(accuracyNotice) : null;
   return (
     <div className="shrink-0">
       {stage.provisionalBanner && (
@@ -27,9 +45,9 @@ export default function StageHead({
           {stage.provisionalBanner}
         </div>
       )}
-      {accuracyNotice && (
+      {noticeText && (
         <div className="w-full border-b border-border-strong bg-surface-overlay px-4 py-2 text-sm text-text-muted">
-          {ACCURACY_NOTICE}
+          {noticeText}
         </div>
       )}
       <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
