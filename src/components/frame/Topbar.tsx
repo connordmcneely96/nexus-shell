@@ -8,7 +8,7 @@ export default function Topbar() {
       style={{ height: "52px" }}
     >
       <span className="flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent font-mono text-xs">N</span>
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent font-mono text-xs text-on-accent">N</span>
         <span className="font-mono tracking-wide text-text-primary">NEXUS</span>
       </span>
       {/* workspace switcher — non-functional chip */}

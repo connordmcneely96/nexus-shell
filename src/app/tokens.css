@@ -26,9 +26,11 @@
      accepted ruling 2026-07-20. */
   --nx-text-faint:       #5D6874;
 
-  /* Accent — interactive and in-progress */
-  --nx-accent:           #4C8DFF;
-  --nx-accent-dim:       #2F6BD4;
+  /* Accent — interactive and in-progress (cyan family) */
+  --nx-accent:           #48DCFF;
+  --nx-accent-dim:       #2F9FBD;
+  --nx-accent-rgb:       72,220,255;   /* for rgba() opacity layering */
+  --nx-on-accent:        #04252E;       /* near-black text/icons ON accent bg */
 
   /* Status roles. NOTE: --nx-verdict is deliberately OUTSIDE the
      success/warn/danger triad. 'infeasible' is a determinate engineering

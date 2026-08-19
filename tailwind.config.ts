@@ -23,6 +23,7 @@ const config: Config = {
           DEFAULT: "var(--nx-accent)",
           dim: "var(--nx-accent-dim)",
         },
+        "on-accent": "var(--nx-on-accent)",
         success: "var(--nx-success)",
         verdict: "var(--nx-verdict)",
         warn: "var(--nx-warn)",
