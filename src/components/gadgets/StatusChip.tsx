@@ -38,6 +38,9 @@ export default function StatusChip({
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${s.border} ${s.color}`}
+      // Presentation-only accent glow on the running state — shape, marker, and
+      // state logic are unchanged.
+      style={state === "running" ? { boxShadow: "0 0 10px rgba(var(--nx-accent-rgb), 0.35)" } : undefined}
     >
       <span
         className={`inline-block h-2 w-2 ${MARKER_SHAPE[s.marker]} ${pulse ? "animate-pulse" : ""}`}

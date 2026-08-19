@@ -144,7 +144,7 @@ export default function Rail() {
       </ul>
 
       <div className="mt-6">
-        <div className="px-3 text-xs tracking-wide text-text-muted">ACTIVE SYSTEMS</div>
+        <div className="nx-up px-3 text-xs text-text-muted">ACTIVE SYSTEMS</div>
         <ul className="mt-2 flex flex-col gap-1">
           {ACTIVE_SYSTEMS.map((s) => (
             <li key={s.id}>

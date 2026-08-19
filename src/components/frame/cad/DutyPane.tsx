@@ -14,7 +14,7 @@ export default function DutyPane() {
   return (
     <div className="p-6">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm text-text-muted">Duty</h2>
+        <h2 className="nx-up text-sm text-text-muted">Duty</h2>
         <span className="rounded-full border border-border-subtle px-2 py-1 text-xs text-text-muted">
           AGENTS POPULATE · NEVER COMPUTE
         </span>

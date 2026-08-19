@@ -11,7 +11,7 @@ const STORES: { store: string; feeds: string; produces: string; verdict: "succes
 export default function ProvenancePane() {
   return (
     <div className="p-6">
-      <h2 className="mb-3 text-sm text-text-muted">Provenance</h2>
+      <h2 className="nx-up mb-3 text-sm text-text-muted">Provenance</h2>
       <table className="w-full max-w-3xl text-left">
         <thead>
           <tr className="text-xs text-text-faint">

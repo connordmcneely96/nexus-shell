@@ -26,7 +26,7 @@ export default function ChecksPane({ design }: { design: ParsedDesign | null }) 
     // Ungrounded / infeasible — no pipeline values exist yet.
     return (
       <div className="p-6">
-        <h2 className="mb-3 text-sm text-text-muted">Checks</h2>
+        <h2 className="nx-up mb-3 text-sm text-text-muted">Checks</h2>
         <table className="w-full max-w-3xl text-left">
           <tbody>
             {PENDING_CHECKS.map((name) => (
@@ -47,7 +47,7 @@ export default function ChecksPane({ design }: { design: ParsedDesign | null }) 
 
   return (
     <div className="p-6">
-      <h2 className="mb-3 text-sm text-text-muted">Checks</h2>
+      <h2 className="nx-up mb-3 text-sm text-text-muted">Checks</h2>
       <table className="w-full max-w-4xl text-left">
         <thead>
           <tr className="text-xs text-text-faint">
@@ -87,7 +87,7 @@ export default function ChecksPane({ design }: { design: ParsedDesign | null }) 
         computed, not yet verified.
       </p>
 
-      <h3 className="mb-2 mt-6 text-sm text-text-muted">Assumptions</h3>
+      <h3 className="nx-up mb-2 mt-6 text-sm text-text-muted">Assumptions</h3>
       <div className="flex max-w-3xl flex-col gap-2">
         {assumptions.map((a) => {
           const k = kindOf(a.impact);

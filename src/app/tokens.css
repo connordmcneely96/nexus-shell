@@ -87,3 +87,9 @@ body {
 .nx-accent-wash {
   background: linear-gradient(160deg, rgba(var(--nx-accent-rgb), 0.04), var(--nx-surface-raised));
 }
+
+/* Uppercase micro-label treatment for stat/section captions. */
+.nx-up {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
