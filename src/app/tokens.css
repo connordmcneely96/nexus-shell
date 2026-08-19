@@ -9,14 +9,14 @@
  */
 
 :root {
-  /* Surfaces — ascending elevation */
-  --nx-surface-base:     #0B0D10;
-  --nx-surface-raised:   #12151A;
-  --nx-surface-overlay:  #1A1F26;
+  /* Surfaces — ascending elevation (deepened toward the reference) */
+  --nx-surface-base:     #080D12;
+  --nx-surface-raised:   #0B1118;
+  --nx-surface-overlay:  #10171F;
 
   /* Borders */
-  --nx-border-subtle:    #232932;
-  --nx-border-strong:    #333B47;
+  --nx-border-subtle:    #1A222C;
+  --nx-border-strong:    #26313D;
 
   /* Text */
   --nx-text-primary:     #E6EAF0;
@@ -73,4 +73,17 @@ body {
   background: var(--nx-surface-base);
   color: var(--nx-text-primary);
   font-family: var(--nx-font-sans);
+}
+
+/* Layered-accent depth. The signature top-left accent bleed lives on the shell
+   root only; the accent-wash is an opt-in card/tile surface treatment. Both are
+   low-opacity washes over the existing surfaces — chrome only. */
+.nx-shell-root {
+  background:
+    radial-gradient(1200px 600px at 0% 0%, rgba(var(--nx-accent-rgb), 0.05), transparent 60%),
+    var(--nx-surface-base);
+}
+
+.nx-accent-wash {
+  background: linear-gradient(160deg, rgba(var(--nx-accent-rgb), 0.04), var(--nx-surface-raised));
 }
