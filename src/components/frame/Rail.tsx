@@ -65,7 +65,7 @@ export default function Rail() {
   return (
     <nav className="flex h-full flex-col overflow-y-auto bg-surface-raised p-3">
       <div className="mb-1 flex items-center justify-between px-1">
-        <span className="text-xs tracking-wide text-text-faint">NAV</span>
+        <span className="nx-up text-xs text-text-faint">Product · Customer</span>
         <button
           type="button"
           onClick={shellLayout.toggleRail}
@@ -74,6 +74,13 @@ export default function Rail() {
         >
           «
         </button>
+      </div>
+      {/* Floor grouping — presentation only. The nav items, their routes, and
+          their behavior are unchanged; the business floor slots in later. */}
+      <div className="mb-2 px-1">
+        <span className="nx-up rounded-full border border-border-subtle px-2 py-0.5 text-xs text-text-faint">
+          Invariant-governed
+        </span>
       </div>
       <ul className="flex flex-col gap-1">
         {RAIL_ITEMS.map((item) =>
