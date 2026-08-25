@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { VerticalStage } from "@/shell/contract";
 import type { RunClock } from "@/shell/useRunClock";
 import { useShellLayout } from "@/shell/useShellLayout";
+import StatTile from "@/components/gadgets/StatTile";
 
 // System Brain — Context / Agents / Activity. Config is the t=0 baseline; the
 // run clock overlays live agent states and prepends live activity entries.
@@ -50,14 +51,13 @@ export default function Brain({ stage, run }: { stage: VerticalStage; run: RunCl
       <div className="flex-1 p-3">
         {tab === "Context" && (
           <div>
-            <dl className="mb-3">
+            {/* Operational kv only (client/env/cycle/runs/crew) — telemetry
+                tiles never carry an engineering value. */}
+            <div className="mb-3 grid grid-cols-2 gap-2">
               {b.kv.map(([k, v]) => (
-                <div key={k} className="flex justify-between py-1 text-xs">
-                  <dt className="text-text-muted">{k}</dt>
-                  <dd className="text-text-primary">{v}</dd>
-                </div>
+                <StatTile key={k} label={k} value={v} />
               ))}
-            </dl>
+            </div>
             {b.context.map((c) => (
               <div key={c.name} className="flex items-center gap-2 rounded-md px-2 py-2">
                 <span className="text-text-faint">{c.icon}</span>

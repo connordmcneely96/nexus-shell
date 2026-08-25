@@ -77,7 +77,7 @@ export default function StageHead({
           disabled={!primaryAction.enabled}
           className={`shrink-0 rounded-md px-3 py-1 text-sm ${
             primaryAction.enabled
-              ? "bg-accent text-text-primary"
+              ? "bg-accent text-on-accent"
               : "cursor-not-allowed border border-border-strong text-text-muted"
           }`}
         >

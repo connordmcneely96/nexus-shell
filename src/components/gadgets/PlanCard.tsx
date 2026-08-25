@@ -46,7 +46,7 @@ export default function PlanCard({
             disabled={!ready}
             className={`rounded-md px-3 py-1 text-sm ${
               ready
-                ? "bg-accent text-text-primary"
+                ? "bg-accent text-on-accent"
                 : "cursor-not-allowed border border-border-strong text-text-muted"
             }`}
           >

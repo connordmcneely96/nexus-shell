@@ -9,7 +9,7 @@ import type { RunClock } from "@/shell/useRunClock";
 // storage — agent wire-up is Phase 2.
 
 const CREW_BG: Record<VerticalStage["crew"][number]["color"], string> = {
-  accent: "bg-accent",
+  accent: "bg-accent text-on-accent", // on-accent foreground for the cyan chip
   success: "bg-success",
   warn: "bg-warn",
   verdict: "bg-verdict",
@@ -66,7 +66,7 @@ export default function Composer({ stage, run }: { stage: VerticalStage; run: Ru
         />
         <button type="button" className="rounded-md border border-border-subtle px-3 py-1 text-sm text-text-muted">+</button>
         <button type="button" className="rounded-md border border-border-subtle px-3 py-1 text-sm text-text-muted">◎</button>
-        <button type="button" onClick={send} className="rounded-md bg-accent px-3 py-1 text-sm">
+        <button type="button" onClick={send} className="rounded-md bg-accent px-3 py-1 text-sm text-on-accent">
           Send
         </button>
       </div>

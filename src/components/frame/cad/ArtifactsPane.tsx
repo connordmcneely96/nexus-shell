@@ -19,7 +19,7 @@ export default function ArtifactsPane({ artifacts }: { artifacts: Artifact[] }) 
   if (artifacts.length === 0) {
     return (
       <div className="p-6">
-        <h2 className="mb-3 text-sm text-text-muted">Artifacts</h2>
+        <h2 className="nx-up mb-3 text-sm text-text-muted">Artifacts</h2>
         <p className="text-sm text-text-muted">No artifacts registered for this run yet.</p>
       </div>
     );
@@ -33,7 +33,7 @@ export default function ArtifactsPane({ artifacts }: { artifacts: Artifact[] }) 
 
   return (
     <div className="p-6">
-      <h2 className="mb-3 text-sm text-text-muted">Artifacts</h2>
+      <h2 className="nx-up mb-3 text-sm text-text-muted">Artifacts</h2>
       {formats.map((fmt) => (
         <div key={fmt} className="mb-5">
           <div className="mb-1 font-mono text-xs uppercase text-text-faint">{fmt}</div>

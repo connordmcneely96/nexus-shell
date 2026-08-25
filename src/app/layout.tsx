@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <CommandK />
-        <div className="flex h-screen flex-col">
+        <div className="nx-shell-root flex h-screen flex-col">
           <Topbar />
           {/* Rail + stage region live in a resizable frame; no blanket scroll
               wrapper — each pane owns its own scroll. */}

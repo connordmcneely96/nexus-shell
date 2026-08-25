@@ -9,14 +9,14 @@
  */
 
 :root {
-  /* Surfaces — ascending elevation */
-  --nx-surface-base:     #0B0D10;
-  --nx-surface-raised:   #12151A;
-  --nx-surface-overlay:  #1A1F26;
+  /* Surfaces — ascending elevation (deepened toward the reference) */
+  --nx-surface-base:     #080D12;
+  --nx-surface-raised:   #0B1118;
+  --nx-surface-overlay:  #10171F;
 
   /* Borders */
-  --nx-border-subtle:    #232932;
-  --nx-border-strong:    #333B47;
+  --nx-border-subtle:    #1A222C;
+  --nx-border-strong:    #26313D;
 
   /* Text */
   --nx-text-primary:     #E6EAF0;
@@ -26,9 +26,11 @@
      accepted ruling 2026-07-20. */
   --nx-text-faint:       #5D6874;
 
-  /* Accent — interactive and in-progress */
-  --nx-accent:           #4C8DFF;
-  --nx-accent-dim:       #2F6BD4;
+  /* Accent — interactive and in-progress (cyan family) */
+  --nx-accent:           #48DCFF;
+  --nx-accent-dim:       #2F9FBD;
+  --nx-accent-rgb:       72,220,255;   /* for rgba() opacity layering */
+  --nx-on-accent:        #04252E;       /* near-black text/icons ON accent bg */
 
   /* Status roles. NOTE: --nx-verdict is deliberately OUTSIDE the
      success/warn/danger triad. 'infeasible' is a determinate engineering
@@ -71,4 +73,23 @@ body {
   background: var(--nx-surface-base);
   color: var(--nx-text-primary);
   font-family: var(--nx-font-sans);
+}
+
+/* Layered-accent depth. The signature top-left accent bleed lives on the shell
+   root only; the accent-wash is an opt-in card/tile surface treatment. Both are
+   low-opacity washes over the existing surfaces — chrome only. */
+.nx-shell-root {
+  background:
+    radial-gradient(1200px 600px at 0% 0%, rgba(var(--nx-accent-rgb), 0.05), transparent 60%),
+    var(--nx-surface-base);
+}
+
+.nx-accent-wash {
+  background: linear-gradient(160deg, rgba(var(--nx-accent-rgb), 0.04), var(--nx-surface-raised));
+}
+
+/* Uppercase micro-label treatment for stat/section captions. */
+.nx-up {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
