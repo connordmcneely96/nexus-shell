@@ -36,6 +36,18 @@ const Viewport = dynamic(() => import("./Viewport"), {
 // Sketch is a MODE, not a CREATE op; the canvas is controlled from here.
 const EMPTY_SKETCH: Sketch = { plane: "XY", pts: [], segs: [], cons: [] };
 
+// Human-readable reasons for a determinate extrude failure (never a silent nothing).
+const EXTRUDE_REASON: Record<string, string> = {
+  "profile-not-closed": "Close the sketch into a single loop before extruding.",
+  "bad-depth": "Depth must be a number between 0.1 and 1000 mm.",
+  "bad-sketch": "The sketch is empty or malformed.",
+  "exec-not-configured": "The extrude service isn't configured.",
+  "exec-unreachable": "Couldn't reach the extrude service.",
+  "no-glb": "The build ran but produced no solid.",
+  "extrude-failed": "The build failed in the sandbox.",
+  network: "Network error contacting the extrude service.",
+};
+
 // Model — the parametric-document stage. Three regions: a stage-local tree
 // rail (left), a toolbar strip and a viewport area (center). The rail lives
 // INSIDE this pane; the shell Rail is untouched. S1 renders the document tree
@@ -235,10 +247,25 @@ export default function ModelPane() {
                 {extruding ? "building…" : "Extrude"}
               </button>
               {!canExtrude && <span className="text-text-faint">— close the profile to extrude</span>}
-              {extrudeError && (
-                <span className="font-mono text-verdict">extrude failed: {extrudeError.error}</span>
-              )}
             </div>
+          </div>
+        )}
+        {/* A failed extrude is a determinate "no" with a reason — the same
+            discipline as infeasible / over-constrained — not a crash and not a
+            silent nothing. Distinct by SHAPE (◇) and colour (verdict), dashed. */}
+        {mode === "sketch" && extrudeError && (
+          <div className="border-b border-dashed border-verdict bg-surface-raised px-5 py-3">
+            <div className="flex items-center gap-2 text-sm text-verdict">
+              <span>◇</span> Extrude failed — {EXTRUDE_REASON[extrudeError.error] ?? extrudeError.error}
+            </div>
+            <p className="mt-1 text-xs text-text-muted">
+              A failed extrude is a determinate answer with a reason, not a crash.
+            </p>
+            {extrudeError.stderr && (
+              <pre className="mt-2 max-h-40 overflow-auto rounded bg-surface-overlay p-2 font-mono text-xs text-text-faint">
+                {extrudeError.stderr}
+              </pre>
+            )}
           </div>
         )}
         <div className="min-h-0 flex-1">

@@ -306,9 +306,30 @@ export default function Viewport({
 
   return (
     <div className="flex h-full flex-col">
-      <div ref={containerRef} className="min-h-0 flex-1" />
-      <div className="border-t border-border-subtle px-5 py-3 text-sm text-text-faint">
-        Representative geometry from the document — not dimensioned.
+      <div className="relative min-h-0 flex-1">
+        <div ref={containerRef} className="h-full w-full" />
+        {glbArrayBuffer && (
+          // Persistent, NON-DISMISSIBLE ungrounded watermark over the solid.
+          <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-1 rounded-full border border-pending px-3 py-1 font-mono text-xs text-pending">
+            <span>◇</span> CONCEPT · UNGROUNDED
+          </div>
+        )}
+      </div>
+      {/* UNGROUNDED PROVENANCE RULE (non-negotiable): a solid extruded from a
+          hand-drawn sketch is ungrounded geometry — Concept / Tier-3. It carries
+          NO checks, NO citations, and NO PE-seal affordance, and must NEVER be
+          presented as grounded, sized, or checked. This is the S5 analogue of the
+          CONCEPT-MODE wall. */}
+      <div className="border-t border-border-subtle px-5 py-3 text-sm">
+        {glbArrayBuffer ? (
+          <span className="flex items-center gap-2 text-pending">
+            <span>◇</span> Concept solid — ungrounded · not sized · not for fabrication
+          </span>
+        ) : (
+          <span className="text-text-faint">
+            Representative geometry from the document — not dimensioned.
+          </span>
+        )}
       </div>
     </div>
   );
