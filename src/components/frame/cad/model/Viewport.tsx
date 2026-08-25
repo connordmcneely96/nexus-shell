@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { workbench } from "@/mock/workbench";
 
 // Viewport — a Three.js render of the parametric document. The geometry is
@@ -61,10 +62,14 @@ export default function Viewport({
   command,
   selected,
   onSelect,
+  glbArrayBuffer,
 }: {
   command?: CamCommand | null;
   selected?: string | null;
   onSelect?: (nodeId: string) => void;
+  // When present, render this GLB (a concept solid extruded from the sketch)
+  // INSTEAD of the procedural fixture. Parsed with GLTFLoader; see S5.
+  glbArrayBuffer?: ArrayBuffer | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -100,23 +105,54 @@ export default function Viewport({
     key.position.set(1, 1, 1);
     scene.add(key);
 
-    // Procedural stepped-shaft geometry — one cylinder per axial section, sized
-    // from the section's radius and length (axialEnd - axialStart) and centred at
-    // its midpoint along X. Adjacent sections abut, forming one continuous shaft.
-    // Each mesh owns its material so selection and teardown stay per-mesh.
     const model = new THREE.Group();
-    for (const node of workbench.nodes) {
-      const length = node.axialEnd - node.axialStart;
-      const geom = new THREE.CylinderGeometry(node.radius, node.radius, length, 32);
-      const material = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, metalness: 0.1, roughness: 0.7 });
-      const mesh = new THREE.Mesh(geom, material);
-      mesh.rotation.z = Math.PI / 2; // default Y-up cylinder -> lie along X
-      mesh.position.x = (node.axialStart + node.axialEnd) / 2;
-      mesh.userData.nodeId = node.nodeId;
-      model.add(mesh);
-    }
     scene.add(model);
-    frameCamera(camera, controls, model, new THREE.Vector3(1, 0.6, 1));
+
+    // Guards the async GLB parse against unmount: if the effect tears down before
+    // parse finishes, dispose the orphaned scene rather than adding it to a
+    // disposed graph.
+    let cancelled = false;
+
+    if (glbArrayBuffer) {
+      // Render the extruded concept solid from its GLB instead of the fixture.
+      const loader = new GLTFLoader();
+      loader.parse(
+        glbArrayBuffer,
+        "",
+        (gltf) => {
+          if (cancelled) {
+            gltf.scene.traverse((o) => {
+              const m = o as THREE.Mesh;
+              m.geometry?.dispose();
+              const mat = m.material;
+              if (mat) (Array.isArray(mat) ? mat : [mat]).forEach((x) => x.dispose());
+            });
+            return;
+          }
+          model.add(gltf.scene);
+          frameCamera(camera, controls, model, new THREE.Vector3(1, 0.6, 1));
+        },
+        () => {
+          /* parse errors surface via the route/UI; nothing to render here */
+        },
+      );
+    } else {
+      // Procedural stepped-shaft geometry — one cylinder per axial section, sized
+      // from the section's radius and length (axialEnd - axialStart) and centred
+      // at its midpoint along X. Adjacent sections abut, forming one continuous
+      // shaft. Each mesh owns its material so selection and teardown stay per-mesh.
+      for (const node of workbench.nodes) {
+        const length = node.axialEnd - node.axialStart;
+        const geom = new THREE.CylinderGeometry(node.radius, node.radius, length, 32);
+        const material = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, metalness: 0.1, roughness: 0.7 });
+        const mesh = new THREE.Mesh(geom, material);
+        mesh.rotation.z = Math.PI / 2; // default Y-up cylinder -> lie along X
+        mesh.position.x = (node.axialStart + node.axialEnd) / 2;
+        mesh.userData.nodeId = node.nodeId;
+        model.add(mesh);
+      }
+      frameCamera(camera, controls, model, new THREE.Vector3(1, 0.6, 1));
+    }
 
     cameraRef.current = camera;
     controlsRef.current = controls;
@@ -182,6 +218,7 @@ export default function Viewport({
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
     return () => {
+      cancelled = true; // stop a late GLB parse from touching a disposed graph
       cameraRef.current = null;
       controlsRef.current = null;
       modelRef.current = null;
@@ -214,7 +251,8 @@ export default function Viewport({
         container.removeChild(renderer.domElement);
       }
     };
-  }, []);
+    // Re-init when the GLB changes so a freshly extruded solid replaces the scene.
+  }, [glbArrayBuffer]);
 
   // Reflect the selected tree node onto its mesh. The highlight is an emissive
   // tint (a colour channel) reinforced by a subtle uniform scale (a shape
@@ -224,11 +262,12 @@ export default function Viewport({
     const model = modelRef.current;
     if (!model) return;
     for (const child of model.children) {
-      const mesh = child as THREE.Mesh;
-      const mat = mesh.material as THREE.MeshStandardMaterial;
-      const on = mesh.userData.nodeId === selected;
+      // A GLB adds a nested Group child (no per-node mesh); only tint fixture meshes.
+      if (!(child instanceof THREE.Mesh)) continue;
+      const mat = child.material as THREE.MeshStandardMaterial;
+      const on = child.userData.nodeId === selected;
       mat.emissive.set(on ? 0x3a5f8a : 0x000000);
-      mesh.scale.setScalar(on ? 1.08 : 1);
+      child.scale.setScalar(on ? 1.08 : 1);
     }
   }, [selected]);
 

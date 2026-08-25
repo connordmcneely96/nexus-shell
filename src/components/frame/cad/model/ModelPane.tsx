@@ -9,8 +9,17 @@ import SketchCanvas from "./SketchCanvas";
 import type { Selection } from "./SketchCanvas";
 import ConstraintBar from "./sketch/ConstraintBar";
 import { solve } from "./sketch/solver";
+import { closedLoops } from "./sketch/topology";
 import type { Sketch, Constraint } from "./sketch/types";
 import type { CamCommand, ViewKind } from "./Viewport";
+
+// Decode base64 (from the extrude route) into an ArrayBuffer for GLTFLoader.
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
 
 // Load the viewport lazily and client-only so Three.js is not pulled into the
 // route's shared bundle — it splits into its own chunk fetched when the Model
@@ -58,6 +67,12 @@ export default function ModelPane() {
   // Over-constrained is the sketch's infeasible: solve() returned converged=false.
   // We keep the best-effort geometry and surface the state, never hide it.
   const [overConstrained, setOverConstrained] = useState(false);
+  // Extrude: user-supplied depth, the building state, the returned concept solid
+  // (a GLB ArrayBuffer), and a determinate failure reason (never a silent swallow).
+  const [depth, setDepth] = useState(10);
+  const [extruding, setExtruding] = useState(false);
+  const [glb, setGlb] = useState<ArrayBuffer | null>(null);
+  const [extrudeError, setExtrudeError] = useState<{ error: string; stderr?: string } | null>(null);
 
   // Every sketch mutation runs the constraint solver when constraints exist.
   // `pinId` (a transiently dragged point) is added as a temporary fixed so the
@@ -88,6 +103,34 @@ export default function ModelPane() {
 
   const runView = (kind: ViewKind) =>
     setCamCommand((c) => ({ kind, seq: (c?.seq ?? 0) + 1 }));
+
+  // Extrude is enabled ONLY on a real single closed loop (the S4c topology check,
+  // reused). The server re-checks — the client gate is a courtesy, not the trust
+  // boundary.
+  const canExtrude = closedLoops(sketch).isClosedProfile;
+  const runExtrude = async () => {
+    if (!canExtrude || extruding) return;
+    setExtruding(true);
+    setExtrudeError(null);
+    try {
+      const res = await fetch("/api/sketch/extrude", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sketch, depth }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && data.glbBase64) {
+        setGlb(base64ToArrayBuffer(data.glbBase64));
+        setMode("model"); // show the returned solid
+      } else {
+        setExtrudeError({ error: data.error ?? "extrude-failed", stderr: data.stderr });
+      }
+    } catch {
+      setExtrudeError({ error: "network" });
+    } finally {
+      setExtruding(false);
+    }
+  };
 
   // Distinct groups, in first-seen order. Derived inside the component (not at
   // module scope) so it recomputes once the document becomes dynamic in S3.
@@ -171,6 +214,31 @@ export default function ModelPane() {
               onAddConstraint={addConstraint}
               onRemoveConstraint={removeConstraint}
             />
+            {/* Extrude: enabled only on a real closed loop. Depth is USER input
+                (◆ / text-accent), never grounded. */}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-mono uppercase text-text-faint">Solid</span>
+              <span className="text-accent" title="depth is user input, not grounded">◆</span>
+              <input
+                type="number"
+                value={depth}
+                onChange={(e) => setDepth(Number(e.target.value))}
+                className="w-16 rounded border border-border-subtle bg-surface-raised px-2 py-1 text-xs text-text-primary"
+              />
+              <span className="text-text-faint">mm depth</span>
+              <button
+                type="button"
+                disabled={!canExtrude || extruding || !(depth >= 0.1 && depth <= 1000)}
+                onClick={runExtrude}
+                className="rounded-full border border-border-subtle px-3 py-1 text-xs text-text-muted disabled:opacity-40"
+              >
+                {extruding ? "building…" : "Extrude"}
+              </button>
+              {!canExtrude && <span className="text-text-faint">— close the profile to extrude</span>}
+              {extrudeError && (
+                <span className="font-mono text-verdict">extrude failed: {extrudeError.error}</span>
+              )}
+            </div>
           </div>
         )}
         <div className="min-h-0 flex-1">
@@ -183,7 +251,12 @@ export default function ModelPane() {
               overConstrained={overConstrained}
             />
           ) : (
-            <Viewport command={camCommand} selected={selected} onSelect={setSelected} />
+            <Viewport
+              command={camCommand}
+              selected={selected}
+              onSelect={setSelected}
+              glbArrayBuffer={glb}
+            />
           )}
         </div>
       </div>
