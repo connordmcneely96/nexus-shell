@@ -60,13 +60,31 @@ export async function POST(req: Request) {
 
     const script = buildExtrudeScript(sketch, depth);
 
-    let runRes: Response;
-    try {
-      runRes = await fetch(RUN_URL, {
+    // POST to /run preserving the method. redirect:"manual" stops fetch from
+    // auto-following a redirect (which would downgrade POST->GET and drop the
+    // path, hitting nexus-exec's 404 fall-through). If /run 3xx's to a normalized
+    // host, we re-issue the SAME POST to that location exactly once — never a GET.
+    const runPost = (url: string) =>
+      fetch(url, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-exec-secret": secret },
+        redirect: "manual",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          "x-exec-secret": secret,
+        },
         body: JSON.stringify({ script, timeout_ms: RUN_TIMEOUT_MS }),
       });
+
+    let runRes: Response;
+    try {
+      runRes = await runPost(RUN_URL);
+      if (runRes.status >= 300 && runRes.status < 400) {
+        const location = runRes.headers.get("location");
+        if (location) {
+          runRes = await runPost(new URL(location, RUN_URL).toString());
+        }
+      }
     } catch {
       // Network / reachability failure — a determinate failure, not a swallow.
       return NextResponse.json({ ok: false, error: "exec-unreachable" }, { status: 502 });
