@@ -29,3 +29,8 @@ export type Constraint =
   | { id: string; kind: "fixed"; pt: string }; // pinned point
 
 export type Sketch = { plane: "XY" | "XZ" | "YZ"; pts: Pt[]; segs: Seg[]; cons: Constraint[] };
+
+// An extrude request: a closed-profile sketch plus a USER-supplied depth (mm).
+// `depth` is user input (user provenance) — like a duty value, not a solver-
+// produced engineering value. The solid it yields is ungrounded (see S5).
+export type ExtrudeRequest = { sketch: Sketch; depth: number };
