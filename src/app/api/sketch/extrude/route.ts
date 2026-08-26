@@ -73,8 +73,25 @@ export async function POST(req: Request) {
     }
 
     if (!runRes.ok) {
+      // TEMPORARY diagnostic surface (S5.1): the direct curl to /run returns 200,
+      // but our Worker->Worker subrequest comes back non-ok. Expose what actually
+      // arrived so a redirect/normalization is visible. Never the secret. Trimmed
+      // in commit 3 once a real extrude is confirmed.
+      const bodyText = await runRes.text().catch(() => "");
       return NextResponse.json(
-        { ok: false, error: "extrude-failed", exitCode: runRes.status },
+        {
+          ok: false,
+          error: "extrude-failed",
+          exitCode: runRes.status,
+          debug: {
+            status: runRes.status,
+            statusText: runRes.statusText,
+            location: runRes.headers.get("location"),
+            redirected: runRes.redirected,
+            finalUrl: runRes.url,
+            bodyPreview: bodyText.slice(0, 500),
+          },
+        },
         { status: 502 },
       );
     }
