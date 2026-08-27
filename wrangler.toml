@@ -13,5 +13,13 @@ binding = "DB"
 database_name = "ll-cockpit-db"
 database_id = "831eeccf-60bc-4378-8a3b-71dfb910756e"
 
+# Service binding to the nexus-exec worker (the build123d sandbox). The extrude
+# route calls it Worker->Worker over this binding, NOT the public workers.dev URL,
+# because a same-account public-URL subrequest is refused by Cloudflare's edge
+# (error 1042). The binding routes directly to the bound worker.
+[[services]]
+binding = "NEXUS_EXEC"
+service = "nexus-exec"
+
 [observability]
 enabled = true
