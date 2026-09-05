@@ -12,7 +12,10 @@ import type { Sketch } from "@/components/frame/cad/model/sketch/types";
 // on failure, stderr for diagnosis — never the secret, the script, or full stdout.
 export const runtime = "nodejs";
 
-const RUN_URL = "https://nexus-exec.connorpattern.workers.dev/run";
+// Over the service binding the hostname is ignored; only the path "/run" and the
+// POST method matter (nexus-exec matches url.pathname === "/run" && method POST).
+// A syntactically valid absolute URL with path /run.
+const EXEC_RUN_URL = "https://nexus-exec/run";
 const RUN_TIMEOUT_MS = 60000;
 
 type RunArtifact = { name: string; size_bytes: number; base64?: string };
@@ -51,23 +54,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "profile-not-closed" }, { status: 422 });
     }
 
-    // Read the secret from the Cloudflare env via OpenNext — never process.env.
-    const env = getCloudflareContext().env as unknown as { EXEC_SECRET?: string };
+    // Read the secret AND the nexus-exec service binding from the Cloudflare env
+    // via OpenNext — never process.env, never the public URL.
+    const env = getCloudflareContext().env as unknown as {
+      EXEC_SECRET?: string;
+      NEXUS_EXEC?: { fetch: (req: Request) => Promise<Response> };
+    };
     const secret = env.EXEC_SECRET;
     if (!secret) {
+      return NextResponse.json({ ok: false, error: "exec-not-configured" }, { status: 500 });
+    }
+    if (!env.NEXUS_EXEC) {
       return NextResponse.json({ ok: false, error: "exec-not-configured" }, { status: 500 });
     }
 
     const script = buildExtrudeScript(sketch, depth);
 
-    // POST to /run preserving the method. redirect:"manual" stops fetch from
-    // auto-following a redirect (which would downgrade POST->GET and drop the
-    // path, hitting nexus-exec's 404 fall-through). If /run 3xx's to a normalized
-    // host, we re-issue the SAME POST to that location exactly once — never a GET.
-    const runPost = (url: string) =>
-      fetch(url, {
+    // Call nexus-exec Worker->Worker OVER THE SERVICE BINDING, not the public
+    // workers.dev URL (a same-account public-URL subrequest is refused — error
+    // 1042). Over the binding the hostname is ignored, but the path "/run" and
+    // POST method must be correct (nexus-exec matches url.pathname === "/run" &&
+    // method POST). A single clean call — no redirect handling needed here.
+    let runRes: Response;
+    try {
+      const runReq = new Request(EXEC_RUN_URL, {
         method: "POST",
-        redirect: "manual",
         headers: {
           "content-type": "application/json",
           accept: "application/json",
@@ -75,18 +86,9 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({ script, timeout_ms: RUN_TIMEOUT_MS }),
       });
-
-    let runRes: Response;
-    try {
-      runRes = await runPost(RUN_URL);
-      if (runRes.status >= 300 && runRes.status < 400) {
-        const location = runRes.headers.get("location");
-        if (location) {
-          runRes = await runPost(new URL(location, RUN_URL).toString());
-        }
-      }
+      runRes = await env.NEXUS_EXEC.fetch(runReq);
     } catch {
-      // Network / reachability failure — a determinate failure, not a swallow.
+      // Reachability failure over the binding — a determinate failure, not a swallow.
       return NextResponse.json({ ok: false, error: "exec-unreachable" }, { status: 502 });
     }
 
