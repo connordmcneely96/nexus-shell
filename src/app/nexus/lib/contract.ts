@@ -28,7 +28,9 @@ export interface MissionDetail {
   design_events: DesignEvent[];
   runs: AgentRun[];
 }
+export interface Workspace { id: string; name: string }
 export interface NexusContract {
+  listWorkspaces(): Promise<Workspace[]>;
   listMissions(): Promise<Mission[]>;
   getMission(id: string): Promise<MissionDetail | null>;
   listAgents(): Promise<AgentRailState[]>;
@@ -57,6 +59,7 @@ const AGENTS: AgentRailState[] = [
 ];
 
 const mockAdapter: NexusContract = {
+  listWorkspaces: async () => [{ id: "tenant-mock", name: "Inner Animal Media" }, { id: "tenant-2", name: "Sandbox" }],
   listMissions: async () => MISSIONS,
   getMission: async (id) => {
     const mission = MISSIONS.find((x) => x.id === id);
